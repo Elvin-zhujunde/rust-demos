@@ -4,7 +4,6 @@ node_modules/
 .pnp.js
 
 # Production
-dist/
 build/
 
 # Testing
@@ -44,7 +43,6 @@ pnpm-debug.log*
 # Vue specific
 .DS_Store
 node_modules
-/dist
 
 # local env files
 .env.local
@@ -88,7 +86,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+
 
 # Gatsby files
 .cache/

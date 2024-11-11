@@ -1,0 +1,1 @@
+import{_ as r,b as n,d as o,o as s}from"./index-9778kytf.js";const t={};function a(c,e){return s(),n("div",null,e[0]||(e[0]=[o("h2",null,"成绩查询",-1)]))}const d=r(t,[["render",a]]);export{d as default};

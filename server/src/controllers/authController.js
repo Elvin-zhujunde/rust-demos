@@ -58,77 +58,39 @@ const authController = {
 
   async register(ctx) {
     try {
-      const { 
-        username, // 学号/教师编号
-        password,
-        role,
-        name,
-        gender,
-        email,
-        address,
-        department_id
-      } = ctx.request.body
+      const { role, ...data } = ctx.request.body
 
-      // 验证必填字段
-      if (!username || !password || !name || !gender || !email) {
-        ctx.status = 400
-        ctx.body = {
-          success: false,
-          message: '请填写所有必填字段'
+      // 根据角色选择不同的验证和插入逻辑
+      if (role === 'student') {
+        // 验证学生必填字段
+        const requiredFields = ['student_id', 'name', 'password', 'gender', 'email', 'department_id', 'major_id', 'class_id']
+        for (const field of requiredFields) {
+          if (!data[field]) {
+            ctx.status = 400
+            ctx.body = {
+              success: false,
+              message: `${field} 是必填项`
+            }
+            return
+          }
         }
-        return
-      }
 
-      // 根据角色选择表
-      const tableName = role === 'teacher' ? 'Teacher' : 'Student'
-      const idField = role === 'teacher' ? 'teacher_id' : 'student_id'
+        // 检查学号是否已存在
+        const [existingStudent] = await pool.execute(
+          'SELECT student_id FROM Student WHERE student_id = ?',
+          [data.student_id]
+        )
 
-      // 检查用户是否已存在
-      const [existingUsers] = await pool.execute(`
-        SELECT ${idField} FROM ${tableName} 
-        WHERE ${idField} = ?
-      `, [username])
-
-      if (existingUsers.length > 0) {
-        ctx.status = 400
-        ctx.body = {
-          success: false,
-          message: role === 'teacher' ? '教师编号已存在' : '学号已存在'
+        if (existingStudent.length > 0) {
+          ctx.status = 400
+          ctx.body = {
+            success: false,
+            message: '学号已存在'
+          }
+          return
         }
-        return
-      }
 
-      // 检查department_id是否存在
-      const [departments] = await pool.execute(
-        'SELECT department_id FROM Department WHERE department_id = ?',
-        [department_id]
-      )
-
-      if (departments.length === 0) {
-        ctx.status = 400
-        ctx.body = {
-          success: false,
-          message: '所选院系不存在'
-        }
-        return
-      }
-
-      // 创建新用户
-      if (role === 'teacher') {
-        await pool.execute(`
-          INSERT INTO Teacher (
-            teacher_id, 
-            name,
-            password,
-            gender,
-            email,
-            address,
-            department_id,
-            title,
-            entry_date
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, '讲师', NOW())
-        `, [username, name, password, gender, email, address || '', department_id])
-      } else {
+        // 插入学生记录
         await pool.execute(`
           INSERT INTO Student (
             student_id,
@@ -138,13 +100,78 @@ const authController = {
             email,
             address,
             department_id,
+            major_id,
+            class_id,
             degree,
             enrollment_date,
             semester
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, '本科', NOW(), 1)
-        `, [username, name, password, gender, email, address || '', department_id])
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '本科', NOW(), 1)
+        `, [
+          data.student_id,
+          data.name,
+          data.password,
+          data.gender,
+          data.email,
+          data.address || '',
+          data.department_id,
+          data.major_id,
+          data.class_id
+        ])
+
+      } else if (role === 'teacher') {
+        // 验证教师必填字段
+        const requiredFields = ['teacher_id', 'name', 'password', 'gender', 'email', 'department_id', 'title']
+        for (const field of requiredFields) {
+          if (!data[field]) {
+            ctx.status = 400
+            ctx.body = {
+              success: false,
+              message: `${field} 是必填项`
+            }
+            return
+          }
+        }
+
+        // 检查教师编号是否已存在
+        const [existingTeacher] = await pool.execute(
+          'SELECT teacher_id FROM Teacher WHERE teacher_id = ?',
+          [data.teacher_id]
+        )
+
+        if (existingTeacher.length > 0) {
+          ctx.status = 400
+          ctx.body = {
+            success: false,
+            message: '教师编号已存在'
+          }
+          return
+        }
+
+        // 插入教师记录
+        await pool.execute(`
+          INSERT INTO Teacher (
+            teacher_id,
+            name,
+            password,
+            gender,
+            email,
+            address,
+            department_id,
+            title,
+            entry_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `, [
+          data.teacher_id,
+          data.name,
+          data.password,
+          data.gender,
+          data.email,
+          data.address || '',
+          data.department_id,
+          data.title
+        ])
       }
-      
+
       ctx.body = {
         success: true,
         message: '注册成功'

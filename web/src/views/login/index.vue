@@ -46,6 +46,10 @@
             登录
           </a-button>
         </a-form-item>
+
+        <div class="form-footer">
+          还没有账号？ <router-link to="/register">去注册</router-link>
+        </div>
       </a-form>
     </div>
   </div>
@@ -128,5 +132,20 @@ h2 {
 
 .ant-form-item:last-child {
   margin-bottom: 0;
+}
+
+.form-footer {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.form-footer a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.form-footer a:hover {
+  text-decoration: underline;
 }
 </style> 

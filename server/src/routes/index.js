@@ -6,6 +6,8 @@ const teacherController = require('../controllers/teacherController')
 const studentCourseController = require('../controllers/studentCourseController')
 const courseController = require('../controllers/courseController')
 const gradeController = require('../controllers/gradeController')
+const logController = require('../controllers/logController')
+const adminController = require('../controllers/adminController')
 
 // 操作日志记录函数
 const logOperation = async (ctx, next) => {
@@ -97,5 +99,11 @@ router.put('/student/:student_id', teacherController.updateStudentInfo)
 router.get('/departments', teacherController.getDepartments)
 router.get('/majors', teacherController.getMajors)
 router.get('/classes', teacherController.getClasses)
+
+// 日志相关路由
+router.get('/logs', logController.getLogs)
+
+// 管理员相关路由
+router.get('/admin/statistics', adminController.getStatistics)
 
 module.exports = router 

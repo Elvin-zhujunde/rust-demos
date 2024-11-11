@@ -2,12 +2,18 @@ import { createRouter, createWebHistory } from 'vue-router'
 import BasicLayout from '../layouts/BasicLayout.vue'
 import Home from '../views/Home.vue'
 import Login from '../views/login/index.vue'
+import AdminLayout from '../views/admin/AdminLayout.vue'
 
 const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: () => import('../views/login/index.vue')
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/register/index.vue')
   },
   {
     path: '/',
@@ -64,6 +70,24 @@ const routes = [
         name: 'Profile',
         component: () => import('../views/Profile.vue'),
         meta: { requiresAuth: true }
+      }
+    ]
+  },
+  {
+    path: '/admin',
+    component: AdminLayout,
+    children: [
+      {
+        path: 'home',
+        name: 'AdminHome',
+        component: () => import('../views/admin/Home.vue'),
+        meta: { requiresAuth: true, role: 'admin' }
+      },
+      {
+        path: 'logs',
+        name: 'AdminLogs',
+        component: () => import('../views/admin/Logs.vue'),
+        meta: { requiresAuth: true, role: 'admin' }
       }
     ]
   }
