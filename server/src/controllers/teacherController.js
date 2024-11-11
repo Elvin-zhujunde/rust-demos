@@ -210,6 +210,120 @@ const teacherController = {
         message: '服务器错误'
       }
     }
+  },
+
+  // 修改学生信息
+  async updateStudentInfo(ctx) {
+    try {
+      const { student_id } = ctx.params
+      const { 
+        name,
+        gender,
+        department_id,
+        major_id,
+        class_id
+      } = ctx.request.body
+
+      // 验证学生是否存在
+      const [students] = await pool.execute(
+        'SELECT * FROM Student WHERE student_id = ?',
+        [student_id]
+      )
+
+      if (students.length === 0) {
+        ctx.status = 404
+        ctx.body = {
+          success: false,
+          message: '学生不存在'
+        }
+        return
+      }
+
+      // 更新学生信息
+      await pool.execute(`
+        UPDATE Student 
+        SET name = ?,
+            gender = ?,
+            department_id = ?,
+            major_id = ?,
+            class_id = ?
+        WHERE student_id = ?
+      `, [name, gender, department_id, major_id, class_id, student_id])
+
+      ctx.body = {
+        success: true,
+        message: '更新成功'
+      }
+    } catch (error) {
+      console.error('更新学生信息错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取所有院系
+  async getDepartments(ctx) {
+    try {
+      const [rows] = await pool.execute('SELECT department_id, department_name FROM Department')
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取院系列表错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取专业列表
+  async getMajors(ctx) {
+    try {
+      const { department_id } = ctx.query
+      const [rows] = await pool.execute(
+        'SELECT major_id, major_name FROM Major WHERE department_id = ?',
+        [department_id]
+      )
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取专业列表错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取班级列表
+  async getClasses(ctx) {
+    try {
+      const { major_id } = ctx.query
+      const [rows] = await pool.execute(
+        'SELECT class_id, class_name FROM Class WHERE major_id = ?',
+        [major_id]
+      )
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取班级列表错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
   }
 }
 

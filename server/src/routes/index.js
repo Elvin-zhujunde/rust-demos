@@ -38,4 +38,10 @@ router.post('/update-grade', gradeController.updateGrade)
 router.get('/teacher-students/:teacher_id', teacherController.getTeacherStudents)
 router.get('/teacher-student-courses/:teacher_id/:student_id', teacherController.getStudentCourseDetails)
 
+// 学生信息管理相关路由
+router.put('/student/:student_id', teacherController.updateStudentInfo)
+router.get('/departments', teacherController.getDepartments)
+router.get('/majors', teacherController.getMajors)
+router.get('/classes', teacherController.getClasses)
+
 module.exports = router 

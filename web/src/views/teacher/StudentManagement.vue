@@ -12,7 +12,7 @@
         :pagination="false"
         row-key="student_id"
       >
-        <!-- 自定义列渲染 -->
+        <!-- 使用 v-slot:bodyCell 替代 slots -->
         <template #bodyCell="{ column, record }">
           <!-- GPA列 -->
           <template v-if="column.dataIndex === 'gpa'">
@@ -26,13 +26,14 @@
 
           <!-- 操作列 -->
           <template v-if="column.dataIndex === 'action'">
-            <a-button 
-              type="link" 
-              @click="showCourseDetails(record)"
-              :loading="record.detailLoading"
-            >
-              查看选课详情
-            </a-button>
+            <a-space>
+              <a-button type="link" @click="handleEdit(record)">
+                编辑
+              </a-button>
+              <a-button type="link" @click="showCourseDetails(record)">
+                查看选课详情
+              </a-button>
+            </a-space>
           </template>
         </template>
       </a-table>
@@ -77,12 +78,89 @@
           </a-table>
         </a-spin>
       </a-modal>
+
+      <!-- 添加编辑学生信息的弹窗 -->
+      <a-modal
+        v-model:open="editVisible"
+        title="修改学生信息"
+        @ok="handleEditSubmit"
+        :confirmLoading="editLoading"
+      >
+        <a-form
+          :model="editForm"
+          :rules="rules"
+          ref="editFormRef"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 16 }"
+        >
+          <a-form-item label="学号" name="student_id">
+            <span>{{ editForm.student_id }}</span>
+          </a-form-item>
+          
+          <a-form-item label="姓名" name="name">
+            <a-input v-model:value="editForm.name" />
+          </a-form-item>
+          
+          <a-form-item label="性别" name="gender">
+            <a-radio-group v-model:value="editForm.gender">
+              <a-radio value="男">男</a-radio>
+              <a-radio value="女">女</a-radio>
+            </a-radio-group>
+          </a-form-item>
+          
+          <a-form-item label="院系" name="department_id">
+            <a-select
+              v-model:value="editForm.department_id"
+              @change="handleDepartmentChange"
+            >
+              <a-select-option
+                v-for="dept in departments"
+                :key="dept.department_id"
+                :value="dept.department_id"
+              >
+                {{ dept.department_name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          
+          <a-form-item label="专业" name="major_id">
+            <a-select
+              v-model:value="editForm.major_id"
+              @change="handleMajorChange"
+              :disabled="!editForm.department_id"
+            >
+              <a-select-option
+                v-for="major in majors"
+                :key="major.major_id"
+                :value="major.major_id"
+              >
+                {{ major.major_name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          
+          <a-form-item label="班级" name="class_id">
+            <a-select
+              v-model:value="editForm.class_id"
+              :disabled="!editForm.major_id"
+            >
+              <a-select-option
+                v-for="cls in classes"
+                :key="cls.class_id"
+                :value="cls.class_id"
+              >
+                {{ cls.class_name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-form>
+      </a-modal>
     </a-card>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import axios from 'axios'
 
@@ -92,6 +170,31 @@ const studentList = ref([])
 const detailVisible = ref(false)
 const selectedStudent = ref(null)
 const courseDetails = ref([])
+
+// 编辑相关的状态
+const editVisible = ref(false)
+const editLoading = ref(false)
+const editFormRef = ref(null)
+const departments = ref([])
+const majors = ref([])
+const classes = ref([])
+
+const editForm = reactive({
+  student_id: '',
+  name: '',
+  gender: '',
+  department_id: '',
+  major_id: '',
+  class_id: ''
+})
+
+const rules = {
+  name: [{ required: true, message: '请输入姓名' }],
+  gender: [{ required: true, message: '请选择性别' }],
+  department_id: [{ required: true, message: '请选择院系' }],
+  major_id: [{ required: true, message: '请选择专业' }],
+  class_id: [{ required: true, message: '请选择班级' }]
+}
 
 // 学生表格列定义
 const columns = [
@@ -217,6 +320,116 @@ const showCourseDetails = async (student) => {
     message.error('获取选课详情失败')
   } finally {
     detailLoading.value = false
+  }
+}
+
+// 获取院系列表
+const fetchDepartments = async () => {
+  try {
+    const response = await axios.get('/departments')
+    if (response.data.success) {
+      departments.value = response.data.data
+    }
+  } catch (error) {
+    console.error('获取院系列表失败:', error)
+    message.error('获取院系列表失败')
+  }
+}
+
+// 获取专业列表
+const fetchMajors = async (departmentId) => {
+  try {
+    const response = await axios.get('/majors', {
+      params: { department_id: departmentId }
+    })
+    if (response.data.success) {
+      majors.value = response.data.data
+    }
+  } catch (error) {
+    console.error('获取专业列表失败:', error)
+    message.error('获取专业列表失败')
+  }
+}
+
+// 获取班级列表
+const fetchClasses = async (majorId) => {
+  try {
+    const response = await axios.get('/classes', {
+      params: { major_id: majorId }
+    })
+    if (response.data.success) {
+      classes.value = response.data.data
+    }
+  } catch (error) {
+    console.error('获取班级列表失败:', error)
+    message.error('获取班级列表失败')
+  }
+}
+
+// 处理院系变化
+const handleDepartmentChange = async (value) => {
+  editForm.major_id = ''
+  editForm.class_id = ''
+  majors.value = []
+  classes.value = []
+  if (value) {
+    await fetchMajors(value)
+  }
+}
+
+// 处理专业变化
+const handleMajorChange = async (value) => {
+  editForm.class_id = ''
+  classes.value = []
+  if (value) {
+    await fetchClasses(value)
+  }
+}
+
+// 打开编辑弹窗
+const handleEdit = async (record) => {
+  editForm.student_id = record.student_id
+  editForm.name = record.name
+  editForm.gender = record.gender
+  editForm.department_id = record.department_id
+  editForm.major_id = record.major_id
+  editForm.class_id = record.class_id
+  
+  await fetchDepartments()
+  if (record.department_id) {
+    await fetchMajors(record.department_id)
+  }
+  if (record.major_id) {
+    await fetchClasses(record.major_id)
+  }
+  
+  editVisible.value = true
+}
+
+// 提交编辑
+const handleEditSubmit = async () => {
+  try {
+    await editFormRef.value.validate()
+    editLoading.value = true
+    
+    const response = await axios.put(`/student/${editForm.student_id}`, {
+      name: editForm.name,
+      gender: editForm.gender,
+      department_id: editForm.department_id,
+      major_id: editForm.major_id,
+      class_id: editForm.class_id
+    })
+    
+    if (response.data.success) {
+      message.success('更新成功')
+      editVisible.value = false
+      await fetchStudents() // 刷新学生列表
+    }
+  } catch (error) {
+    console.error('更新学生信息失败:', error)
+    message.error(error.response?.data?.message || '更新失败')
+  } finally {
+    editLoading.value = false
   }
 }
 
