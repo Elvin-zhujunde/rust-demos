@@ -56,9 +56,11 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
+import { useUserStore } from '../stores/user'
 import axios from 'axios'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loading = ref(false)
 
 const formData = reactive({
@@ -73,16 +75,30 @@ const handleSubmit = async () => {
     const response = await axios.post('/login', formData)
     
     if (response.data.success) {
-      // 保存用户信息到localStorage
-      localStorage.setItem('role', response.data.role)
-      localStorage.setItem('roleCode', response.data.roleCode)
-      localStorage.setItem('userId', response.data.userId)
-      localStorage.setItem('name', response.data.name)
+      // 使用 Pinia 存储用户信息
+      userStore.setUserInfo({
+        role: response.data.role,
+        roleCode: response.data.roleCode,
+        userId: response.data.userId,
+        name: response.data.name
+      })
 
       message.success('登录成功')
-      
-      // 直接跳转到首页
-      await router.push('/home')
+
+      // 根据角色跳转到不同页面
+      switch (response.data.role) {
+        case 'admin':
+          await router.push('/home')
+          break
+        case 'teacher':
+          await router.push('/teaching-courses')
+          break
+        case 'student':
+          await router.push('/course-selection')
+          break
+        default:
+          await router.push('/home')
+      }
     } else {
       message.error(response.data.message || '登录失败')
     }
