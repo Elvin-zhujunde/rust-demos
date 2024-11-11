@@ -1,4 +1,5 @@
 const Router = require('koa-router')
+const pool = require('../config/database')
 const authController = require('../controllers/authController')
 const studentController = require('../controllers/studentController')
 const teacherController = require('../controllers/teacherController')
@@ -6,7 +7,60 @@ const studentCourseController = require('../controllers/studentCourseController'
 const courseController = require('../controllers/courseController')
 const gradeController = require('../controllers/gradeController')
 
+// 操作日志记录函数
+const logOperation = async (ctx, next) => {
+  try {
+    await next()
+    // 只记录成功的操作
+    if (ctx.body?.success) {
+      const method = ctx.method
+      let operationType = 'select'
+      
+      // 根据HTTP方法判断操作类型
+      switch (method) {
+        case 'POST':
+          operationType = 'create'
+          break
+        case 'PUT':
+          operationType = 'update'
+          break
+        case 'DELETE':
+          operationType = 'delete'
+          break
+      }
+
+      // 从URL中获取操作的表名
+      const pathParts = ctx.path.split('/')
+      const tableName = pathParts[1] // 例如 /student/123 中的 student
+
+      // 记录操作日志
+      await pool.execute(`
+        INSERT INTO OperationLog (
+          user_id,
+          operation_type,
+          table_name,
+          record_id,
+          description
+        ) VALUES (?, ?, ?, ?, ?)
+      `, [
+        'system', // 可以从ctx中获取用户ID
+        operationType,
+        tableName,
+        pathParts[2] || null, // URL中的ID部分
+        `${operationType} operation on ${tableName}`
+      ])
+    }
+  } catch (error) {
+    console.error('Log operation error:', error)
+    // 继续抛出错误，不影响主流程
+    throw error
+  }
+}
+
 const router = new Router()
+
+// 在所有路由之前使用日志记录中间件
+router.use(logOperation)
 
 // 认证相关路由
 router.post('/login', authController.login)

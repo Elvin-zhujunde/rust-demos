@@ -1,6 +1,5 @@
 
 DROP DATABASE IF EXISTS TeachingManagementSystem;
-
 -- 1.创建数据库
 CREATE DATABASE TeachingManagementSystem;
 USE TeachingManagementSystem;
@@ -26,7 +25,6 @@ CREATE TABLE Class (
     major_id VARCHAR(20),
     FOREIGN KEY (major_id) REFERENCES Major(major_id)
 );
-
 
 -- 2.4 创建学生表
 CREATE TABLE Student (
@@ -62,7 +60,6 @@ CREATE TABLE Teacher (
     entry_date DATE NOT NULL,
     FOREIGN KEY (department_id) REFERENCES Department(department_id)
 );
-
 
 -- 2.6 创建学科表
 CREATE TABLE Subject (
@@ -401,3 +398,4 @@ SET student_count = (
 
 -- 7.2 检查学生的总学分和GPA
 SELECT student_id, name, total_credits, gpa FROM Student;
+
