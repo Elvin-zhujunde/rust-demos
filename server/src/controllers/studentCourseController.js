@@ -14,15 +14,30 @@ const studentCourseController = {
           s.credits,
           t.name as teacher_name,
           t.title as teacher_title,
-          g.grade,
-          cs.selection_date
+          c.student_count,
+          c.max_students,
+          c.week_day,
+          c.start_section,
+          c.section_count,
+          CASE c.week_day
+            WHEN '1' THEN '周一'
+            WHEN '2' THEN '周二'
+            WHEN '3' THEN '周三'
+            WHEN '4' THEN '周四'
+            WHEN '5' THEN '周五'
+            WHEN '6' THEN '周六'
+            WHEN '7' THEN '周日'
+          END as week_day_text,
+          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text,
+          cs.selection_date,
+          g.grade
         FROM CourseSelection cs
         JOIN Course c ON cs.course_id = c.course_id
         JOIN Subject s ON c.subject_id = s.subject_id
         JOIN Teacher t ON c.teacher_id = t.teacher_id
         LEFT JOIN Grades g ON cs.student_id = g.student_id AND cs.course_id = g.course_id
         WHERE cs.student_id = ?
-        ORDER BY cs.selection_date DESC
+        ORDER BY c.week_day, c.start_section
       `, [student_id])
 
       ctx.body = {

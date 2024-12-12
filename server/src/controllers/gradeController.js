@@ -58,7 +58,6 @@ const gradeController = {
         'SELECT * FROM CourseSelection WHERE student_id = ? AND course_id = ?',
         [student_id, course_id]
       )
-
       if (selections.length === 0) {
         ctx.status = 400
         ctx.body = {
@@ -67,6 +66,7 @@ const gradeController = {
         }
         return
       }
+      console.log('@@@@@@@@@@@', selections);
 
       // 检查成绩是否已存在
       const [existing] = await pool.execute(
@@ -94,6 +94,39 @@ const gradeController = {
       }
     } catch (error) {
       console.error('更新成绩错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取课程的学生成绩列表
+  async getCourseGrades(ctx) {
+    try {
+      const { course_id } = ctx.params
+      
+      const [rows] = await pool.execute(`
+        SELECT 
+          s.student_id,
+          s.name,
+          c.class_name,
+          g.grade
+        FROM CourseSelection cs
+        JOIN Student s ON cs.student_id = s.student_id
+        JOIN Class c ON s.class_id = c.class_id
+        LEFT JOIN Grades g ON cs.student_id = g.student_id AND cs.course_id = g.course_id
+        WHERE cs.course_id = ?
+        ORDER BY s.student_id
+      `, [course_id])
+
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取课程成绩列表错误:', error)
       ctx.status = 500
       ctx.body = {
         success: false,

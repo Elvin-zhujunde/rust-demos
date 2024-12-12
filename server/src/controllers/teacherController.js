@@ -59,8 +59,9 @@ const teacherController = {
   async getTeacherCourses(ctx) {
     try {
       const { teacher_id } = ctx.params
+      const { keyword } = ctx.query
 
-      const [rows] = await pool.execute(`
+      let sql = `
         SELECT 
           c.course_id,
           s.subject_id,
@@ -69,12 +70,35 @@ const teacherController = {
           s.credits,
           c.semester,
           c.student_count,
-          c.max_students
+          c.max_students,
+          c.week_day,
+          c.start_section,
+          c.section_count,
+          CASE c.week_day
+            WHEN '1' THEN '周一'
+            WHEN '2' THEN '周二'
+            WHEN '3' THEN '周三'
+            WHEN '4' THEN '周四'
+            WHEN '5' THEN '周五'
+            WHEN '6' THEN '周六'
+            WHEN '7' THEN '周日'
+          END as week_day_text,
+          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
         FROM Course c
         JOIN Subject s ON c.subject_id = s.subject_id
         WHERE c.teacher_id = ?
-        ORDER BY c.semester DESC, c.course_id
-      `, [teacher_id])
+      `
+      
+      const params = [teacher_id]
+
+      if (keyword) {
+        sql += ` AND s.subject_name LIKE ?`
+        params.push(`%${keyword}%`)
+      }
+
+      sql += ` ORDER BY c.semester DESC, c.course_id`
+
+      const [rows] = await pool.execute(sql, params)
 
       ctx.body = {
         success: true,
@@ -94,7 +118,7 @@ const teacherController = {
   async getCourseStudents(ctx) {
     try {
       const { course_id } = ctx.params
-
+      
       const [rows] = await pool.execute(`
         SELECT 
           s.student_id,
@@ -103,14 +127,12 @@ const teacherController = {
           d.department_name,
           m.major_name,
           c.class_name,
-          cs.selection_date,
-          g.grade
+          cs.selection_date
         FROM CourseSelection cs
         JOIN Student s ON cs.student_id = s.student_id
-        LEFT JOIN Department d ON s.department_id = d.department_id
-        LEFT JOIN Major m ON s.major_id = m.major_id
-        LEFT JOIN Class c ON s.class_id = c.class_id
-        LEFT JOIN Grades g ON cs.student_id = g.student_id AND cs.course_id = g.course_id
+        JOIN Department d ON s.department_id = d.department_id
+        JOIN Major m ON s.major_id = m.major_id
+        JOIN Class c ON s.class_id = c.class_id
         WHERE cs.course_id = ?
         ORDER BY s.student_id
       `, [course_id])
@@ -120,7 +142,7 @@ const teacherController = {
         data: rows
       }
     } catch (error) {
-      console.error('获取课程学生列表错误:', error)
+      console.error('获取课程学生名单错误:', error)
       ctx.status = 500
       ctx.body = {
         success: false,

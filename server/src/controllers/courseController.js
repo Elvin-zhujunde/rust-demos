@@ -16,16 +16,29 @@ const courseController = {
           t.title as teacher_title,
           c.student_count,
           c.max_students,
+          c.week_day,
+          c.start_section,
+          c.section_count,
           CASE 
             WHEN cs.student_id IS NOT NULL THEN true 
             ELSE false 
-          END as is_selected
+          END as is_selected,
+          CASE c.week_day
+            WHEN '1' THEN '周一'
+            WHEN '2' THEN '周二'
+            WHEN '3' THEN '周三'
+            WHEN '4' THEN '周四'
+            WHEN '5' THEN '周五'
+            WHEN '6' THEN '周六'
+            WHEN '7' THEN '周日'
+          END as week_day_text,
+          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
         FROM Course c
         JOIN Subject s ON c.subject_id = s.subject_id
         JOIN Teacher t ON c.teacher_id = t.teacher_id
         LEFT JOIN CourseSelection cs ON c.course_id = cs.course_id AND cs.student_id = ?
         WHERE c.student_count < c.max_students
-        ORDER BY c.course_id
+        ORDER BY c.week_day, c.start_section
       `, [student_id])
 
       ctx.body = {
@@ -77,6 +90,62 @@ const courseController = {
         return
       }
 
+      // 获取要选的课程的上课时间
+      const [targetCourse] = await pool.execute(`
+        SELECT week_day, start_section, section_count
+        FROM Course 
+        WHERE course_id = ?
+      `, [course_id])
+
+      if (targetCourse.length === 0) {
+        ctx.status = 404
+        ctx.body = {
+          success: false,
+          message: '课程不存在'
+        }
+        return
+      }
+
+      // 获取学生已选课程的上课时间
+      const [selectedCourses] = await pool.execute(`
+        SELECT 
+          c.week_day, 
+          c.start_section, 
+          c.section_count,
+          s.subject_name
+        FROM CourseSelection cs
+        JOIN Course c ON cs.course_id = c.course_id
+        JOIN Subject s ON c.subject_id = s.subject_id
+        WHERE cs.student_id = ?
+      `, [student_id])
+
+      // 检查时间冲突
+      const target = targetCourse[0]
+      for (const selected of selectedCourses) {
+        // 如果是同一天
+        if (selected.week_day === target.week_day) {
+          // 计算每门课的时间段
+          const targetStart = target.start_section
+          const targetEnd = target.start_section + target.section_count
+          const selectedStart = selected.start_section
+          const selectedEnd = selected.start_section + selected.section_count
+
+          // 检查是否有重叠
+          if (
+            (targetStart >= selectedStart && targetStart < selectedEnd) || // 新课开始时间在已选课程时间段内
+            (targetEnd > selectedStart && targetEnd <= selectedEnd) || // 新课结束时间在已选课程时间段内
+            (targetStart <= selectedStart && targetEnd >= selectedEnd) // 新课完全包含已选课程时间段
+          ) {
+            ctx.status = 400
+            ctx.body = {
+              success: false,
+              message: `与已选课程《${selected.subject_name}》时间冲突`
+            }
+            return
+          }
+        }
+      }
+
       // 开始选课事务
       const connection = await pool.getConnection()
       await connection.beginTransaction()
@@ -86,12 +155,6 @@ const courseController = {
         await connection.execute(
           'INSERT INTO CourseSelection (student_id, course_id) VALUES (?, ?)',
           [student_id, course_id]
-        )
-
-        // 更新课程人数
-        await connection.execute(
-          'UPDATE Course SET student_count = student_count + 1 WHERE course_id = ?',
-          [course_id]
         )
 
         await connection.commit()
@@ -121,6 +184,21 @@ const courseController = {
     try {
       const { student_id, course_id } = ctx.request.body
 
+      // 检查是否已选这门课
+      const [existing] = await pool.execute(
+        'SELECT * FROM CourseSelection WHERE student_id = ? AND course_id = ?',
+        [student_id, course_id]
+      )
+
+      if (existing.length === 0) {
+        ctx.status = 400
+        ctx.body = {
+          success: false,
+          message: '未选择这门课程'
+        }
+        return
+      }
+
       // 开始退课事务
       const connection = await pool.getConnection()
       await connection.beginTransaction()
@@ -130,12 +208,6 @@ const courseController = {
         await connection.execute(
           'DELETE FROM CourseSelection WHERE student_id = ? AND course_id = ?',
           [student_id, course_id]
-        )
-
-        // 更新课程人数
-        await connection.execute(
-          'UPDATE Course SET student_count = student_count - 1 WHERE course_id = ?',
-          [course_id]
         )
 
         await connection.commit()
@@ -152,6 +224,311 @@ const courseController = {
       }
     } catch (error) {
       console.error('退课错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取课程表数据
+  async getSchedule(ctx) {
+    try {
+      const [rows] = await pool.execute(`
+        SELECT 
+          c.course_id,
+          s.subject_name,
+          t.name as teacher_name,
+          c.week_day,
+          c.start_section,
+          c.section_count,
+          c.class_hours
+        FROM Course c
+        JOIN Subject s ON c.subject_id = s.subject_id
+        JOIN Teacher t ON c.teacher_id = t.teacher_id
+        ORDER BY c.week_day, c.start_section
+      `)
+
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取课程表错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取教师课表数据
+  async getTeacherSchedule(ctx) {
+    try {
+      const { teacher_id } = ctx.params
+      
+      const [rows] = await pool.execute(`
+        SELECT 
+          c.course_id,
+          s.subject_name,
+          t.name as teacher_name,
+          c.week_day,
+          c.start_section,
+          c.section_count,
+          c.class_hours,
+          c.student_count,
+          c.max_students
+        FROM Course c
+        JOIN Subject s ON c.subject_id = s.subject_id
+        JOIN Teacher t ON c.teacher_id = t.teacher_id
+        WHERE c.teacher_id = ?
+        ORDER BY c.week_day, c.start_section
+      `, [teacher_id])
+
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取教师课表错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取学生课表数据
+  async getStudentSchedule(ctx) {
+    try {
+      const { student_id } = ctx.params
+      
+      const [rows] = await pool.execute(`
+        SELECT 
+          c.course_id,
+          s.subject_name,
+          t.name as teacher_name,
+          c.week_day,
+          c.start_section,
+          c.section_count,
+          c.class_hours,
+          c.student_count,
+          c.max_students
+        FROM CourseSelection cs
+        JOIN Course c ON cs.course_id = c.course_id
+        JOIN Subject s ON c.subject_id = s.subject_id
+        JOIN Teacher t ON c.teacher_id = t.teacher_id
+        WHERE cs.student_id = ?
+        ORDER BY c.week_day, c.start_section
+      `, [student_id])
+
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取学生课表错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取单个课程详情
+  async getCourseDetail(ctx) {
+    try {
+      const { course_id } = ctx.params
+      
+      const [rows] = await pool.execute(`
+        SELECT 
+          c.course_id,
+          s.subject_name,
+          s.class_hours,
+          s.credits,
+          c.semester,
+          c.student_count,
+          c.max_students,
+          c.week_day,
+          c.start_section,
+          c.section_count,
+          CASE c.week_day
+            WHEN '1' THEN '周一'
+            WHEN '2' THEN '周二'
+            WHEN '3' THEN '周三'
+            WHEN '4' THEN '周四'
+            WHEN '5' THEN '周五'
+            WHEN '6' THEN '周六'
+            WHEN '7' THEN '周日'
+          END as week_day_text,
+          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
+        FROM Course c
+        JOIN Subject s ON c.subject_id = s.subject_id
+        WHERE c.course_id = ?
+      `, [course_id])
+
+      if (rows.length === 0) {
+        ctx.status = 404
+        ctx.body = {
+          success: false,
+          message: '课程不存在'
+        }
+        return
+      }
+
+      ctx.body = {
+        success: true,
+        data: rows[0]
+      }
+    } catch (error) {
+      console.error('获取课程详情错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 获取学生班级的必修课程
+  async getClassRequiredCourses(ctx) {
+    try {
+      const { student_id } = ctx.params
+      
+      // 获取学生所在班级的必修课程
+      const [rows] = await pool.execute(`
+        SELECT 
+          c.course_id,
+          s.subject_name,
+          t.name as teacher_name,
+          c.week_day,
+          c.start_section,
+          c.section_count,
+          c.class_hours,
+          c.student_count,
+          c.max_students,
+          CASE c.week_day
+            WHEN '1' THEN '周一'
+            WHEN '2' THEN '周二'
+            WHEN '3' THEN '周三'
+            WHEN '4' THEN '周四'
+            WHEN '5' THEN '周五'
+            WHEN '6' THEN '周六'
+            WHEN '7' THEN '周日'
+          END as week_day_text,
+          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
+        FROM Student stu
+        JOIN CourseClass cc ON stu.class_id = cc.class_id
+        JOIN Course c ON cc.course_id = c.course_id
+        JOIN Subject s ON c.subject_id = s.subject_id
+        JOIN Teacher t ON c.teacher_id = t.teacher_id
+        WHERE stu.student_id = ?
+        ORDER BY c.week_day, c.start_section
+      `, [student_id])
+
+      ctx.body = {
+        success: true,
+        data: rows
+      }
+    } catch (error) {
+      console.error('获取班级必修课程错误:', error)
+      ctx.status = 500
+      ctx.body = {
+        success: false,
+        message: '服务器错误'
+      }
+    }
+  },
+
+  // 应用班级课程表
+  async applyClassCourses(ctx) {
+    try {
+      const { student_id } = ctx.request.body
+
+      // 获取学生所在班级的必修课程
+      const [classCourses] = await pool.execute(`
+        SELECT c.* 
+        FROM Student stu
+        JOIN CourseClass cc ON stu.class_id = cc.class_id
+        JOIN Course c ON cc.course_id = c.course_id
+        WHERE stu.student_id = ?
+      `, [student_id])
+
+      // 获取学生已选课程
+      const [selectedCourses] = await pool.execute(`
+        SELECT 
+          c.*,
+          s.subject_name
+        FROM CourseSelection cs
+        JOIN Course c ON cs.course_id = c.course_id
+        JOIN Subject s ON c.subject_id = s.subject_id
+        WHERE cs.student_id = ?
+      `, [student_id])
+
+      // 检查时间冲突
+      for (const classCourse of classCourses) {
+        for (const selected of selectedCourses) {
+          if (selected.week_day === classCourse.week_day) {
+            const classStart = classCourse.start_section
+            const classEnd = classCourse.start_section + classCourse.section_count
+            const selectedStart = selected.start_section
+            const selectedEnd = selected.start_section + selected.section_count
+
+            if (
+              (classStart >= selectedStart && classStart < selectedEnd) ||
+              (classEnd > selectedStart && classEnd <= selectedEnd) ||
+              (classStart <= selectedStart && classEnd >= selectedEnd)
+            ) {
+              ctx.status = 400
+              ctx.body = {
+                success: false,
+                message: `班级课程与已选课程《${selected.subject_name}》时间冲突`
+              }
+              return
+            }
+          }
+        }
+      }
+
+      // 开始选课事务
+      const connection = await pool.getConnection()
+      await connection.beginTransaction()
+
+      try {
+        // 批量插入选课记录
+        for (const course of classCourses) {
+          // 检查是否已选
+          const [existing] = await connection.execute(
+            'SELECT 1 FROM CourseSelection WHERE student_id = ? AND course_id = ?',
+            [student_id, course.course_id]
+          )
+
+          if (existing.length === 0) {
+            await connection.execute(
+              'INSERT INTO CourseSelection (student_id, course_id) VALUES (?, ?)',
+              [student_id, course.course_id]
+            )
+          }
+        }
+
+        await connection.commit()
+
+        ctx.body = {
+          success: true,
+          message: '班级课程应用成功'
+        }
+      } catch (err) {
+        await connection.rollback()
+        throw err
+      } finally {
+        connection.release()
+      }
+    } catch (error) {
+      console.error('应用班级课程错误:', error)
       ctx.status = 500
       ctx.body = {
         success: false,

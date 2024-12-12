@@ -5,11 +5,7 @@
         <span v-if="!collapsed">教学管理系统</span>
         <span v-else>TMS</span>
       </div>
-      <a-menu
-        v-model:selectedKeys="selectedKeys"
-        theme="dark"
-        mode="inline"
-      >
+      <a-menu v-model:selectedKeys="selectedKeys" theme="dark" mode="inline">
         <!-- 公共菜单项 -->
         <a-menu-item key="home">
           <home-outlined />
@@ -38,11 +34,7 @@
             <span>授课管理</span>
             <router-link to="/teaching-courses" />
           </a-menu-item>
-          <a-menu-item key="grade-management">
-            <edit-outlined />
-            <span>成绩管理</span>
-            <router-link to="/grade-management" />
-          </a-menu-item>
+
           <a-menu-item key="student-management">
             <team-outlined />
             <span>学生管理</span>
@@ -73,11 +65,11 @@
           </a-popconfirm>
         </div>
       </a-layout-header>
-      
+
       <a-layout-content class="content">
         <router-view></router-view>
       </a-layout-content>
-      
+
       <a-layout-footer class="footer">
         教学管理系统 ©2024 Created by Your Team
       </a-layout-footer>
@@ -86,9 +78,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { message } from "ant-design-vue";
 import {
   HomeOutlined,
   BookOutlined,
@@ -97,31 +89,31 @@ import {
   ReadOutlined,
   EditOutlined,
   TeamOutlined,
-  UserOutlined
-} from '@ant-design/icons-vue'
+  UserOutlined,
+} from "@ant-design/icons-vue";
 
-const router = useRouter()
-const collapsed = ref(false)
-const selectedKeys = ref(['home'])
+const router = useRouter();
+const collapsed = ref(false);
+const selectedKeys = ref(["home"]);
 
-const userRole = ref(localStorage.getItem('role'))
-const userName = ref(localStorage.getItem('name'))
+const userRole = ref(localStorage.getItem("role"));
+const userName = ref(localStorage.getItem("name"));
 
 const handleLogout = async () => {
   try {
     // 清除本地存储的用户信息
-    localStorage.clear()
-    
+    localStorage.clear();
+
     // 显示退出成功提示
-    message.success('退出登录成功')
-    
+    message.success("退出登录成功");
+
     // 跳转到登录页
-    await router.push('/login')
+    await router.push("/login");
   } catch (error) {
-    console.error('退出登录错误:', error)
-    message.error('退出登录失败')
+    console.error("退出登录错误:", error);
+    message.error("退出登录失败");
   }
-}
+};
 </script>
 
 <style scoped>
@@ -145,7 +137,7 @@ const handleLogout = async () => {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
 }
 
 .header-right {
@@ -171,4 +163,4 @@ const handleLogout = async () => {
   text-align: center;
   color: rgba(0, 0, 0, 0.45);
 }
-</style> 
+</style>

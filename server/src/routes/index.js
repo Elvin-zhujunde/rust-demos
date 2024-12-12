@@ -76,7 +76,7 @@ router.get('/course-students/:course_id', teacherController.getCourseStudents)
 // 学生信息接口
 router.get('/student/:id', studentController.getStudentById)
 
-// 学生课程相关接口
+// 学���相关接口
 router.get('/student-courses/:student_id', studentCourseController.getStudentCourses)
 // 这里出错了，因为没有定义 post 方法
 router.post('/course-selection', studentCourseController.enrollCourse)  // 这个方法还未定义
@@ -105,5 +105,21 @@ router.get('/logs', logController.getLogs)
 
 // 管理员相关路由
 router.get('/admin/statistics', adminController.getStatistics)
+
+// 教师课表相关路由
+router.get('/teacher-schedule/:teacher_id', courseController.getTeacherSchedule)
+
+// 学生课表相关路由
+router.get('/student-schedule/:student_id', courseController.getStudentSchedule)
+
+// 课程相关路由
+router.get('/course/:course_id', courseController.getCourseDetail)
+
+// 成绩相关路由
+router.get('/course-grades/:course_id', gradeController.getCourseGrades)
+
+// 班级课程相关路由
+router.get('/class-courses/:student_id', courseController.getClassRequiredCourses)
+router.post('/apply-class-courses', courseController.applyClassCourses)
 
 module.exports = router 

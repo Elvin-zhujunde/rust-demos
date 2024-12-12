@@ -53,10 +53,10 @@ const routes = [
         meta: { requiresAuth: true, role: 'teacher' }
       },
       {
-        path: 'grade-management',
+        path: 'grade-management/:course_id',
         name: 'GradeManagement',
         component: () => import('../views/teacher/GradeManagement.vue'),
-        meta: { requiresAuth: true, role: 'teacher' }
+        meta: { requiresAuth: true, role: 'teacher', hideInMenu: true }
       },
       {
         path: 'student-management',
@@ -121,3 +121,5 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router 
+
+

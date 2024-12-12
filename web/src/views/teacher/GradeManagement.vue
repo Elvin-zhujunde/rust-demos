@@ -2,50 +2,73 @@
   <div class="grade-management">
     <a-card :bordered="false">
       <template #title>
-        <h2>成绩管理</h2>
+        <div class="card-title">
+          <div class="title-left">
+            <a-button @click="goBack" style="margin-right: 16px">
+              <template #icon>
+                <arrow-left-outlined />
+              </template>
+              返回
+            </a-button>
+            <h2>{{ courseInfo.subject_name }} - 成绩管理</h2>
+          </div>
+        </div>
       </template>
 
+      <!-- 课程信息 -->
+      <a-descriptions :column="3" style="margin-bottom: 24px">
+        <a-descriptions-item label="课程名称">
+          {{ courseInfo.subject_name }}
+        </a-descriptions-item>
+        <a-descriptions-item label="学时">
+          {{ courseInfo.class_hours }}
+        </a-descriptions-item>
+        <a-descriptions-item label="学分">
+          {{ courseInfo.credits }}
+        </a-descriptions-item>
+        <a-descriptions-item label="上课时间">
+          {{ courseInfo.week_day_text }} {{ courseInfo.section_text }}
+        </a-descriptions-item>
+        <a-descriptions-item label="选课人数">
+          {{ courseInfo.student_count }}/{{ courseInfo.max_students }}
+        </a-descriptions-item>
+        <a-descriptions-item label="学期">
+          第{{ courseInfo.semester }}学期
+        </a-descriptions-item>
+      </a-descriptions>
+
+      <!-- 成绩列表 -->
       <a-table
         :columns="columns"
         :data-source="gradeList"
         :loading="loading"
-        :pagination="false"
-        row-key="id"
+        :pagination="{ pageSize: 10 }"
       >
-        <!-- 成绩列自定义渲染 -->
         <template #bodyCell="{ column, record }">
+          <!-- 成绩列 -->
           <template v-if="column.dataIndex === 'grade'">
-            <div class="grade-cell">
-              <a-input-number
-                v-if="record.editing"
-                v-model:value="record.tempGrade"
-                :min="0"
-                :max="100"
-                size="small"
-                style="width: 80px"
-              />
-              <template v-else>
-                {{ record.grade || '-' }}
-              </template>
-              <div class="grade-actions">
-                <template v-if="record.editing">
-                  <a-button type="link" size="small" @click="handleSave(record)">
-                    保存
-                  </a-button>
-                  <a-button type="link" size="small" @click="handleCancel(record)">
-                    取消
-                  </a-button>
-                </template>
-                <a-button 
-                  v-else 
-                  type="link" 
-                  size="small" 
-                  @click="handleEdit(record)"
-                >
-                  编辑
-                </a-button>
-              </div>
-            </div>
+            <a-input-number
+              v-if="record.editing"
+              v-model:value="record.tempGrade"
+              :min="0"
+              :max="100"
+              :precision="1"
+              style="width: 100px"
+            />
+            <template v-else>
+              {{ record.grade || '-' }}
+            </template>
+          </template>
+
+          <!-- 操作列 -->
+          <template v-if="column.dataIndex === 'action'">
+            <template v-if="record.editing">
+              <a-button type="link" @click="saveGrade(record)">保存</a-button>
+              <a-button type="link" @click="cancelEdit(record)">取消</a-button>
+            </template>
+            <template v-else>
+              <a-button type="link" @click="editGrade(record)">编辑</a-button>
+            </template>
           </template>
         </template>
       </a-table>
@@ -56,26 +79,28 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 import axios from 'axios'
 
+const router = useRouter()
+const route = useRoute()
+const courseId = route.params.course_id
+
 const loading = ref(false)
+const courseInfo = ref({})
 const gradeList = ref([])
 
 // 表格列定义
 const columns = [
-  {
-    title: '课程名称',
-    dataIndex: 'subject_name',
-    width: '25%'
-  },
   {
     title: '学号',
     dataIndex: 'student_id',
     width: '15%'
   },
   {
-    title: '学生姓名',
-    dataIndex: 'student_name',
+    title: '姓名',
+    dataIndex: 'name',
     width: '15%'
   },
   {
@@ -86,51 +111,54 @@ const columns = [
   {
     title: '成绩',
     dataIndex: 'grade',
-    width: '25%'
+    width: '20%'
+  },
+  {
+    title: '操作',
+    dataIndex: 'action',
+    width: '30%'
   }
 ]
 
-// 获取成绩列表
-const fetchGrades = async () => {
+// 获取课程信息和学生成绩列表
+const fetchData = async () => {
   loading.value = true
   try {
-    const teacherId = localStorage.getItem('userId')
-    const response = await axios.get(`/teacher-grades/${teacherId}`)
-    if (response.data.success) {
-      // 为每条记录添加唯一id和编辑状态
-      gradeList.value = response.data.data.map(item => ({
+    // 获取课程信息
+    const courseResponse = await axios.get(`/course/${courseId}`)
+    if (courseResponse.data.success) {
+      courseInfo.value = courseResponse.data.data
+    }
+
+    // 获取学生成绩列表
+    const gradeResponse = await axios.get(`/course-grades/${courseId}`)
+    if (gradeResponse.data.success) {
+      gradeList.value = gradeResponse.data.data.map(item => ({
         ...item,
-        id: `${item.course_id}-${item.student_id}`,
         editing: false,
         tempGrade: item.grade
       }))
     }
   } catch (error) {
-    console.error('获取成绩列表失败:', error)
-    message.error('获取成绩列表失败')
+    console.error('获取数据失败:', error)
+    message.error('获取数据失败')
   } finally {
     loading.value = false
   }
 }
 
 // 编辑成绩
-const handleEdit = (record) => {
+const editGrade = (record) => {
   record.editing = true
   record.tempGrade = record.grade
 }
 
-// 取消编辑
-const handleCancel = (record) => {
-  record.editing = false
-  record.tempGrade = record.grade
-}
-
 // 保存成绩
-const handleSave = async (record) => {
+const saveGrade = async (record) => {
   try {
     const response = await axios.post('/update-grade', {
       student_id: record.student_id,
-      course_id: record.course_id,
+      course_id: courseId,
       grade: record.tempGrade
     })
 
@@ -141,33 +169,40 @@ const handleSave = async (record) => {
     }
   } catch (error) {
     console.error('更新成绩失败:', error)
-    message.error(error.response?.data?.message || '更新成绩失败')
+    message.error('更新成绩失败')
   }
 }
 
+// 取消编辑
+const cancelEdit = (record) => {
+  record.editing = false
+  record.tempGrade = record.grade
+}
+
+// 返回上一页
+const goBack = () => {
+  router.back()
+}
+
 onMounted(() => {
-  fetchGrades()
+  fetchData()
 })
 </script>
 
-<style scoped>
+<style lang="less" scoped>
 .grade-management {
   padding: 24px;
   background: #f0f2f5;
 }
 
-:deep(.ant-card-head-title h2) {
-  margin: 0;
-}
+.card-title {
+  .title-left {
+    display: flex;
+    align-items: center;
 
-.grade-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.grade-actions {
-  display: inline-flex;
-  gap: 4px;
+    h2 {
+      margin: 0;
+    }
+  }
 }
 </style> 
