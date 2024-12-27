@@ -74,6 +74,18 @@ CREATE TABLE Student (
     FOREIGN KEY (class_id) REFERENCES Class(class_id)
 );
 
+
+-- 在创建基础表部分添加教室表
+CREATE TABLE Classroom (
+    classroom_id VARCHAR(20) PRIMARY KEY,
+    building VARCHAR(50) NOT NULL COMMENT '教学楼',
+    room_number VARCHAR(20) NOT NULL COMMENT '房间号',
+    capacity INT NOT NULL COMMENT '容纳人数',
+    UNIQUE KEY `uk_building_room` (building, room_number)
+);
+
+
+
 -- 2.7 课程表
 CREATE TABLE Course (
     course_id VARCHAR(20) PRIMARY KEY,
@@ -82,21 +94,17 @@ CREATE TABLE Course (
     semester INT NOT NULL,
     student_count INT DEFAULT 0,
     max_students INT NOT NULL,
+    classroom_id VARCHAR(20), -- 添加教室ID字段
     class_hours ENUM('16', '32', '48', '64') NOT NULL,
     week_day ENUM('1','2','3','4','5','6','7') NOT NULL COMMENT '周几上课',
-    start_section INT NOT NULL COMMENT '第几节开始上课',
-    section_count INT NOT NULL COMMENT '连续上几节课',
+    start_section INT NOT NULL COMMENT '第几节开始上课 1-6',
+    section_count INT DEFAULT 1 COMMENT '连续上几节课',
     FOREIGN KEY (subject_id) REFERENCES Subject(subject_id),
     FOREIGN KEY (teacher_id) REFERENCES Teacher(teacher_id),
+    FOREIGN KEY (classroom_id) REFERENCES Classroom(classroom_id),
     CONSTRAINT valid_section CHECK (
-        start_section BETWEEN 1 AND 12 AND
-        section_count BETWEEN 1 AND 4 AND
-        start_section + section_count - 1 <= 
-        CASE 
-            WHEN start_section <= 4 THEN 4  -- 上午课程
-            WHEN start_section <= 8 THEN 8  -- 下午课程
-            WHEN start_section <= 12 THEN 12 -- 晚上课程
-        END
+        start_section BETWEEN 1 AND 6 AND  -- 允许1-6节
+        section_count = 1  -- 每节课固定90分钟
     )
 );
 
@@ -142,6 +150,77 @@ CREATE TABLE CourseClass (
     FOREIGN KEY (class_id) REFERENCES Class(class_id) ON DELETE CASCADE
 );
 
+-- 创建教学任务表
+CREATE TABLE IF NOT EXISTS TeachingTask (
+  task_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  course_id VARCHAR(20) NOT NULL,
+  title VARCHAR(100) NOT NULL,
+  description TEXT,
+  weight INT NOT NULL CHECK (weight >= 0 AND weight <= 100),
+  attachment_url VARCHAR(255),
+  start_time DATETIME NOT NULL,
+  end_time DATETIME NOT NULL,
+  status ENUM('active', 'closed') DEFAULT 'active',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (course_id) REFERENCES Course(course_id) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1;
+
+-- 创建学生作业提交表
+CREATE TABLE IF NOT EXISTS TaskSubmission (
+  submission_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  task_id INT NOT NULL,
+  student_id VARCHAR(20) NOT NULL,
+  submission_content TEXT,
+  attachment_url VARCHAR(255),
+  score INT CHECK (score >= 0 AND score <= 100),
+  feedback TEXT,
+  submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (task_id) REFERENCES TeachingTask(task_id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES Student(student_id) ON DELETE CASCADE,
+  UNIQUE KEY unique_submission (task_id, student_id)
+) ENGINE=InnoDB AUTO_INCREMENT=1;
+
+
+
+-- 添加教学任务相关的触发器
+DELIMITER //
+
+-- 检查作业提交时间是否在有效期内
+CREATE TRIGGER check_submission_time
+BEFORE INSERT ON TaskSubmission
+FOR EACH ROW
+BEGIN
+  DECLARE task_status VARCHAR(10);
+  DECLARE task_end_time DATETIME;
+  
+  SELECT status, end_time INTO task_status, task_end_time
+  FROM TeachingTask
+  WHERE task_id = NEW.task_id;
+  
+  IF task_status = 'closed' OR CURRENT_TIMESTAMP > task_end_time THEN
+    SIGNAL SQLSTATE '45000'
+    SET MESSAGE_TEXT = '作业已截止，不能提交';
+  END IF;
+END //
+
+DELIMITER ;
+
+-- 添加教室数据
+INSERT INTO Classroom (classroom_id, building, room_number, capacity) VALUES
+-- 第一教学楼
+('CR101', '第一教学楼', '101', 120),
+('CR102', '第一教学楼', '102', 80),
+('CR103', '第一教学楼', '103', 80),
+('CR201', '第一教学楼', '201', 60),
+('CR202', '第一教学楼', '202', 60),
+-- 第二教学楼
+('CR301', '第二教学楼', '301', 100),
+('CR302', '第二教学楼', '302', 100),
+('CR303', '第二教学楼', '303', 80),
+('CR401', '第二教学楼', '401', 60),
+('CR402', '第二教学楼', '402', 60);
 
 -- 3. 创建触发器和存储过程
 DELIMITER $$
@@ -273,7 +352,7 @@ INSERT INTO Teacher (teacher_id, name, password, gender, email, address, departm
 
 -- 电子信息学院教师
 ('T006', '陈明', '123456', '男', 'chenming@example.com', '上海市浦东新区', 'D002', '教授', '2008-09-01'),
-('T007', '周红', '123456', '女', 'zhouhong@example.com', '上海市黄浦��', 'D002', '副教授', '2011-08-15'),
+('T007', '周红', '123456', '女', 'zhouhong@example.com', '上海市黄浦区', 'D002', '副教授', '2011-08-15'),
 ('T008', '吴强', '123456', '男', 'wuqiang@example.com', '上海市徐汇区', 'D002', '讲师', '2014-07-01'),
 ('T009', '郑丽', '123456', '女', 'zhengli@example.com', '上海市长宁区', 'D002', '助教', '2017-03-10'),
 ('T010', '孙华', '123456', '男', 'sunhua@example.com', '上海市静安区', 'D002', '教授', '2007-09-01'),
@@ -302,11 +381,11 @@ BEGIN
     DECLARE v_course_id VARCHAR(20);
     DECLARE v_subject_id VARCHAR(20);
     DECLARE v_teacher_id VARCHAR(20);
+    DECLARE v_classroom_id VARCHAR(20);
     DECLARE v_class_hours ENUM('16', '32', '48', '64');
     DECLARE v_semester INT;
-    DECLARE v_week_day ENUM('1','2','3','4','5','6','7');
+    DECLARE v_week_day ENUM('1','2','3','4','5');
     DECLARE v_start_section INT;
-    DECLARE v_section_count INT;
     DECLARE max_attempts INT DEFAULT 50;
     DECLARE attempt_count INT;
     DECLARE success BOOLEAN;
@@ -327,47 +406,50 @@ BEGIN
         -- 随机选择教师
         SET v_teacher_id = CONCAT('T', LPAD(FLOOR(RAND() * 15) + 1, 3, '0'));
         
-        -- 根据课时设置每周课时数
-        SET v_class_hours = ELT(FLOOR(RAND() * 4) + 1, '16', '32', '48', '64');
-        SET v_section_count = CAST(v_class_hours AS SIGNED) DIV 16; -- 16课时对应1节/周
+        -- 设置课时
+        SET v_class_hours = '32';
         
         -- 随机选择学期
         SET v_semester = FLOOR(RAND() * 2) + 1;
         
-        -- 尝试找到不冲突的时间段
+        -- 尝试找到不冲突的时间段和教室
         WHILE attempt_count < max_attempts AND NOT success DO
             -- 随机选择周几 (1-5)
             SET v_week_day = CAST(FLOOR(RAND() * 5) + 1 AS CHAR);
             
-            -- 随机选择时间段
-            CASE FLOOR(RAND() * 3)
-                WHEN 0 THEN -- 上午 1-4
-                    SET v_start_section = FLOOR(RAND() * (5 - v_section_count)) + 1;
-                WHEN 1 THEN -- 下午 5-8
-                    SET v_start_section = FLOOR(RAND() * (9 - v_section_count - 4)) + 5;
-                ELSE -- 晚上 9-12
-                    SET v_start_section = FLOOR(RAND() * (13 - v_section_count - 8)) + 9;
-            END CASE;
+            -- 随机选择时间段 (1-6)
+            SET v_start_section = FLOOR(RAND() * 6) + 1;
+            
+            -- 随机选择教室
+            SELECT classroom_id INTO v_classroom_id 
+            FROM Classroom 
+            WHERE NOT EXISTS (
+                SELECT 1 
+                FROM Course 
+                WHERE Course.classroom_id = Classroom.classroom_id
+                AND Course.semester = v_semester
+                AND Course.week_day = v_week_day
+                AND Course.start_section = v_start_section
+            )
+            ORDER BY RAND()
+            LIMIT 1;
             
             -- 检查该教师在这个时间段是否有课
-            IF NOT EXISTS (
+            IF v_classroom_id IS NOT NULL 
+               AND NOT EXISTS (
                 SELECT 1 
                 FROM Course 
                 WHERE teacher_id = v_teacher_id 
                 AND semester = v_semester
                 AND week_day = v_week_day
-                AND (
-                    -- 检查是否有时间重叠
-                    (start_section <= v_start_section AND start_section + section_count > v_start_section)
-                    OR (start_section < v_start_section + v_section_count AND start_section + section_count >= v_start_section + v_section_count)
-                    OR (start_section >= v_start_section AND start_section < v_start_section + v_section_count)
-                )
+                AND start_section = v_start_section
             ) THEN
-                -- 找到合适的时间段，插入课程
+                -- 找到合适的时间段和教室，插入课程
                 INSERT INTO Course (
                     course_id, 
                     subject_id,
                     teacher_id,
+                    classroom_id,
                     semester,
                     student_count,
                     max_students,
@@ -379,13 +461,14 @@ BEGIN
                     v_course_id,
                     v_subject_id,
                     v_teacher_id,
+                    v_classroom_id,
                     v_semester,
                     0,
                     FLOOR(RAND() * 50) + 30,
                     v_class_hours,
                     v_week_day,
                     v_start_section,
-                    v_section_count
+                    1
                 );
                 
                 SET success = TRUE;
@@ -394,7 +477,6 @@ BEGIN
             SET attempt_count = attempt_count + 1;
         END WHILE;
         
-        -- 如果尝试次数用完还没找到合适时间，跳过这门课
         IF NOT success THEN
             SET i = i + 1;
             ITERATE outer_loop;
@@ -402,6 +484,27 @@ BEGIN
         
         SET i = i + 1;
     END WHILE outer_loop;
+    
+    -- 添加固定的测试数据（班级必修课）
+    INSERT INTO Course (
+        course_id, subject_id, teacher_id, classroom_id, semester, 
+        student_count, max_students, class_hours, 
+        week_day, start_section, section_count
+    ) VALUES 
+    -- 计科1班的必修课
+    ('CRS901', 'S001', 'T001', 'CR101', 1, 0, 60, '64', '1', 1, 1),
+    ('CRS902', 'S002', 'T002', 'CR102', 1, 0, 60, '48', '2', 3, 1),
+    ('CRS903', 'S003', 'T003', 'CR103', 1, 0, 60, '48', '3', 5, 1),
+    
+    -- 计科2班的必修课
+    ('CRS904', 'S001', 'T004', 'CR201', 1, 0, 60, '64', '1', 2, 1),
+    ('CRS905', 'S002', 'T005', 'CR202', 1, 0, 60, '48', '2', 4, 1),
+    ('CRS906', 'S003', 'T006', 'CR301', 1, 0, 60, '48', '3', 6, 1);
+    
+    -- 将这些课程分配给相应的班级
+    INSERT INTO CourseClass (course_id, class_id) VALUES
+    ('CRS901', 'C001'), ('CRS902', 'C001'), ('CRS903', 'C001'),
+    ('CRS904', 'C002'), ('CRS905', 'C002'), ('CRS906', 'C002');
 END$$
 
 DELIMITER ;
@@ -418,6 +521,10 @@ INSERT INTO CourseClass (course_id, class_id) VALUES
 ('CRS001', 'C002'),  -- 高等数学课程也分配给计科二班
 ('CRS002', 'C001'),  -- 大学英语课程分配给计科一班
 ('CRS003', 'C003');  -- 数据结构课程分配给软件一班
+
+
+
+
 
 -- 6. 创建视图
 -- 6.1 课程信息与授课教师视图
@@ -498,3 +605,4 @@ GRANT SELECT ON TeachingManagementSystem.vw_Student_Grades_Course_Teacher TO 'te
 GRANT ALL PRIVILEGES ON TeachingManagementSystem.* TO 'admin_user'@'localhost';
 
 FLUSH PRIVILEGES;
+

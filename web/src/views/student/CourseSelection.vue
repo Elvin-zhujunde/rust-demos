@@ -12,6 +12,57 @@
         </div>
       </template>
 
+      <!-- 添加搜索表单 -->
+      <div class="search-form">
+        <a-form layout="inline" :model="searchForm">
+          <a-form-item label="课程名称">
+            <a-input
+              v-model:value="searchForm.subject_name"
+              placeholder="请输入课程名称"
+              allowClear
+            />
+          </a-form-item>
+          <a-form-item label="授课教师">
+            <a-input
+              v-model:value="searchForm.teacher_name"
+              placeholder="请输入教师姓名"
+              allowClear
+            />
+          </a-form-item>
+          <a-form-item label="上课时间">
+            <a-select
+              v-model:value="searchForm.week_day"
+              style="width: 100px"
+              placeholder="星期"
+              allowClear
+            >
+              <a-select-option value="1">周一</a-select-option>
+              <a-select-option value="2">周二</a-select-option>
+              <a-select-option value="3">周三</a-select-option>
+              <a-select-option value="4">周四</a-select-option>
+              <a-select-option value="5">周五</a-select-option>
+            </a-select>
+            <a-select
+              v-model:value="searchForm.start_section"
+              style="width: 160px; margin-left: 8px"
+              placeholder="节次"
+              allowClear
+            >
+              <a-select-option :value="1">上午第1节 (08:00)</a-select-option>
+              <a-select-option :value="2">上午第2节 (09:40)</a-select-option>
+              <a-select-option :value="3">下午第1节 (14:00)</a-select-option>
+              <a-select-option :value="4">下午第2节 (15:40)</a-select-option>
+              <a-select-option :value="5">晚上第1节 (18:00)</a-select-option>
+              <a-select-option :value="6">晚上第2节 (19:40)</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item>
+            <a-button type="primary" @click="handleSearch">搜索</a-button>
+            <a-button style="margin-left: 8px" @click="handleReset">重置</a-button>
+          </a-form-item>
+        </a-form>
+      </div>
+
       <a-table
         :columns="columns"
         :data-source="courseList"
@@ -91,12 +142,12 @@ const columns = [
   {
     title: "课程名称",
     dataIndex: "subject_name",
-    width: "20%",
+    width: "18%",
   },
   {
     title: "授课教师",
     dataIndex: "teacher_name",
-    width: "15%",
+    width: "12%",
     customRender: ({ record }) =>
       `${record.teacher_name} (${record.teacher_title})`,
   },
@@ -106,19 +157,24 @@ const columns = [
     width: "15%",
   },
   {
+    title: "教室",
+    dataIndex: "classroom_name",
+    width: "12%",
+  },
+  {
     title: "学时",
     dataIndex: "class_hours",
-    width: "10%",
+    width: "8%",
   },
   {
     title: "学分",
     dataIndex: "credits",
-    width: "10%",
+    width: "8%",
   },
   {
     title: "课程容量",
     dataIndex: "capacity",
-    width: "15%",
+    width: "12%",
   },
   {
     title: "操作",
@@ -127,14 +183,33 @@ const columns = [
   },
 ];
 
+// 添加搜索表单数据
+const searchForm = ref({
+  subject_name: '',
+  teacher_name: '',
+  week_day: undefined,
+  start_section: undefined
+});
+
 // 获取课程列表
 const fetchCourses = async () => {
   loading.value = true;
   try {
     const studentId = localStorage.getItem("userId");
-    const response = await axios.get(
-      `/available-courses?student_id=${studentId}`
-    );
+    // 构建查询参数
+    const params = new URLSearchParams({
+      student_id: studentId,
+      ...searchForm.value
+    });
+    
+    // 移除未定义的参数
+    Object.keys(searchForm.value).forEach(key => {
+      if (!searchForm.value[key]) {
+        params.delete(key);
+      }
+    });
+
+    const response = await axios.get(`/available-courses?${params.toString()}`);
     if (response.data.success) {
       courseList.value = response.data.data;
     }
@@ -144,6 +219,22 @@ const fetchCourses = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// 搜索处���函数
+const handleSearch = () => {
+  fetchCourses();
+};
+
+// 重置搜索条件
+const handleReset = () => {
+  searchForm.value = {
+    subject_name: '',
+    teacher_name: '',
+    week_day: undefined,
+    start_section: undefined
+  };
+  fetchCourses();
 };
 
 // 选课
@@ -203,6 +294,14 @@ onMounted(() => {
 .course-selection {
   padding: 24px;
   background: #f0f2f5;
+}
+
+.search-form {
+  margin-bottom: 24px;
+  
+  :deep(.ant-form-item) {
+    margin-bottom: 16px;
+  }
 }
 
 :deep(.ant-card-head-title h2) {

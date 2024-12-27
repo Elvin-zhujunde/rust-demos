@@ -74,6 +74,7 @@ const teacherController = {
           c.week_day,
           c.start_section,
           c.section_count,
+          CONCAT(cr.building, ' ', cr.room_number) as classroom_name,
           CASE c.week_day
             WHEN '1' THEN '周一'
             WHEN '2' THEN '周二'
@@ -86,6 +87,7 @@ const teacherController = {
           CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
         FROM Course c
         JOIN Subject s ON c.subject_id = s.subject_id
+        LEFT JOIN Classroom cr ON c.classroom_id = cr.classroom_id
         WHERE c.teacher_id = ?
       `
       

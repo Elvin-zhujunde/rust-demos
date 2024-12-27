@@ -8,6 +8,7 @@ const courseController = require('../controllers/courseController')
 const gradeController = require('../controllers/gradeController')
 const logController = require('../controllers/logController')
 const adminController = require('../controllers/adminController')
+const teachingTaskController = require('../controllers/teachingTaskController')
 
 // 操作日志记录函数
 const logOperation = async (ctx, next) => {
@@ -73,10 +74,10 @@ router.get('/teacher/:teacher_id', teacherController.getTeacherInfo)
 router.get('/teacher-courses/:teacher_id', teacherController.getTeacherCourses)
 router.get('/course-students/:course_id', teacherController.getCourseStudents)
 
-// 学生信息接口
+// 学生信���接口
 router.get('/student/:id', studentController.getStudentById)
 
-// 学���相关接口
+// 学生课程相关接口
 router.get('/student-courses/:student_id', studentCourseController.getStudentCourses)
 // 这里出错了，因为没有定义 post 方法
 router.post('/course-selection', studentCourseController.enrollCourse)  // 这个方法还未定义
@@ -121,5 +122,46 @@ router.get('/course-grades/:course_id', gradeController.getCourseGrades)
 // 班级课程相关路由
 router.get('/class-courses/:student_id', courseController.getClassRequiredCourses)
 router.post('/apply-class-courses', courseController.applyClassCourses)
+
+// 教学任务相关路由
+router.get('/course/:course_id/tasks', teachingTaskController.getTasksByCourse)
+router.get('/task/:task_id', teachingTaskController.getTaskDetail)
+router.post('/task', teachingTaskController.createTask)
+router.put('/task/:task_id', teachingTaskController.updateTask)
+router.delete('/task/:task_id', teachingTaskController.deleteTask)
+
+// 文件上传路由
+router.post('/upload/task-file', teachingTaskController.uploadTaskFile)
+
+// 作业提交相关路由
+router.get('/task/:task_id/submissions', teachingTaskController.getTaskSubmissions)
+router.get('/task/:task_id/my-submission', teachingTaskController.getMySubmission)
+router.post('/task-submission', teachingTaskController.submitAssignment)
+router.put('/task-submission/:submission_id', teachingTaskController.gradeSubmission)
+
+// 测试静态文件访问
+router.get('/test-static', async (ctx) => {
+  const fs = require('fs');
+  const path = require('path');
+  const publicDir = path.join(__dirname, '../../public');
+  const uploadDir = path.join(publicDir, 'uploads');
+  
+  // 列出所有上传的文件
+  const files = fs.readdirSync(uploadDir);
+  
+  ctx.body = {
+    success: true,
+    data: {
+      publicDir,
+      uploadDir,
+      files: files.map(file => ({
+        name: file,
+        path: `/uploads/${file}`,
+        fullPath: path.join(uploadDir, file),
+        exists: fs.existsSync(path.join(uploadDir, file))
+      }))
+    }
+  };
+});
 
 module.exports = router 

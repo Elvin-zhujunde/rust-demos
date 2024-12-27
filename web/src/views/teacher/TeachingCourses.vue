@@ -5,7 +5,6 @@
         <div class="card-title">
           <h2>授课管理</h2>
           <div class="card-title-right">
-            <!-- 添加搜索框 -->
             <a-input-search
               v-model:value="searchKeyword"
               placeholder="搜索课程名称"
@@ -20,33 +19,50 @@
         </div>
       </template>
 
-      <!-- 课程列表 -->
-      <a-table
-        :columns="courseColumns"
-        :data-source="courseList"
-        :loading="loading"
-        :pagination="false"
-        row-key="course_id"
-      >
-        <!-- 课程容量列 -->
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'capacity'">
-            {{ record.student_count }}/{{ record.max_students }}
-          </template>
-          
-          <!-- 操作列 -->
-          <template v-if="column.dataIndex === 'action'">
-            <div class="action-buttons">
-              <a-button type="primary" size="small" @click="showDetail(record)" style="margin-right: 8px">
-                查看详情
-              </a-button>
-              <a-button type="primary" size="small" @click="goToGradeManagement(record)">
-                成绩管理
-              </a-button>
-            </div>
-          </template>
-        </template>
-      </a-table>
+      <div class="course-grid">
+        <a-row :gutter="[16, 16]">
+          <a-col :span="6" v-for="course in courseList" :key="course.course_id">
+            <a-card 
+              hoverable 
+              class="course-card"
+              @click="goToCourseDetail(course)"
+            >
+              <template #cover>
+                <div class="course-card-header" :class="getTimeClass(course.start_section)">
+                  {{ course.week_day_text }} {{ course.section_text }}
+                </div>
+              </template>
+              <a-card-meta :title="course.subject_name">
+                <template #description>
+                  <div class="course-info">
+                    <p>教室：{{ course.classroom_name }}</p>
+                    <p>课程容量：{{ course.student_count }}/{{ course.max_students }}</p>
+                    <p>学分：{{ course.credits }}</p>
+                    <p>学时：{{ course.class_hours }}</p>
+                  </div>
+                </template>
+              </a-card-meta>
+              <div class="card-actions">
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click.stop="goToGradeManagement(course)"
+                  style="margin-right: 8px"
+                >
+                  成绩管理
+                </a-button>
+                <a-button
+                  type="primary"
+                  size="small"
+                  @click.stop="showDetail(course)"
+                >
+                  学生名单
+                </a-button>
+              </div>
+            </a-card>
+          </a-col>
+        </a-row>
+      </div>
     </a-card>
 
     <!-- 课表弹窗 -->
@@ -66,40 +82,14 @@
     <!-- 课程详情弹窗 -->
     <a-modal
       v-model:open="detailVisible"
-      title="课程详情"
+      title="学生名单"
       width="1000px"
       :footer="null"
       :styles="{ top: '20px' }"
     >
       <div v-if="currentCourse" class="course-detail">
-        <!-- 课程基本信息 -->
-        <div class="course-info">
-          <h3>课程信息</h3>
-          <a-descriptions :column="3">
-            <a-descriptions-item label="课程名称">
-              {{ currentCourse.subject_name }}
-            </a-descriptions-item>
-            <a-descriptions-item label="学时">
-              {{ currentCourse.class_hours }}
-            </a-descriptions-item>
-            <a-descriptions-item label="学分">
-              {{ currentCourse.credits }}
-            </a-descriptions-item>
-            <a-descriptions-item label="上课时间">
-              {{ currentCourse.week_day_text }} {{ currentCourse.section_text }}
-            </a-descriptions-item>
-            <a-descriptions-item label="选课人数">
-              {{ currentCourse.student_count }}/{{ currentCourse.max_students }}
-            </a-descriptions-item>
-            <a-descriptions-item label="学期">
-              第{{ currentCourse.semester }}学期
-            </a-descriptions-item>
-          </a-descriptions>
-        </div>
-
         <!-- 学生名单 -->
         <div class="student-list">
-          <h3>学生名单</h3>
           <a-table
             :columns="studentColumns"
             :data-source="studentList"
@@ -123,55 +113,21 @@
 import { onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import axios from 'axios'
-import CourseSchedule from '@/components/CourseSchedule.vue'
 import { useRouter } from 'vue-router'
+import CourseSchedule from '@/components/CourseSchedule.vue'
 
 const loading = ref(false)
 const courseList = ref([])
 const scheduleVisible = ref(false)
 const scheduleRef = ref(null)
 const teacherId = ref(localStorage.getItem('userId'))
+const router = useRouter()
 
 // 课程详情相关
 const detailVisible = ref(false)
 const currentCourse = ref(null)
 const studentList = ref([])
 const studentLoading = ref(false)
-
-// 课程表格列定义
-const courseColumns = [
-  {
-    title: '课程名称',
-    dataIndex: 'subject_name',
-    width: '25%'
-  },
-  {
-    title: '学时',
-    dataIndex: 'class_hours',
-    width: '10%'
-  },
-  {
-    title: '学分',
-    dataIndex: 'credits',
-    width: '10%'
-  },
-  {
-    title: '上课时间',
-    dataIndex: 'course_time',
-    width: '20%',
-    customRender: ({ record }) => `${record.week_day_text} ${record.section_text}`
-  },
-  {
-    title: '选课人数',
-    dataIndex: 'capacity',
-    width: '15%'
-  },
-  {
-    title: '操作',
-    dataIndex: 'action',
-    width: '20%'
-  }
-]
 
 // 学生表格列定义
 const studentColumns = [
@@ -274,13 +230,33 @@ const fetchStudentList = async (courseId) => {
 }
 
 // 跳转到成绩管理
-const router = useRouter()
 const goToGradeManagement = (course) => {
   router.push({
     name: 'GradeManagement',
     params: { course_id: course.course_id }
   })
 }
+
+// 跳转到课程详情页
+const goToCourseDetail = (course) => {
+  router.push({
+    name: 'CourseDetail',
+    params: { id: course.course_id }
+  });
+};
+
+// 根据上课时间获取卡片头部的样式类
+const getTimeClass = (startSection) => {
+  const timeClasses = {
+    1: 'morning-1',
+    2: 'morning-2',
+    3: 'afternoon-1',
+    4: 'afternoon-2',
+    5: 'evening-1',
+    6: 'evening-2'
+  };
+  return timeClasses[startSection] || 'morning-1';
+};
 
 onMounted(() => {
   fetchCourses()
@@ -301,6 +277,48 @@ onMounted(() => {
   .card-title-right {
     display: flex;
     align-items: center;
+  }
+}
+
+.course-grid {
+  margin-top: 16px;
+}
+
+.course-card {
+  height: 100%;
+  transition: all 0.3s;
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+
+  .course-card-header {
+    padding: 16px;
+    text-align: center;
+    font-weight: bold;
+    color: white;
+  }
+
+  .morning-1 { background-color: #1890ff; }
+  .morning-2 { background-color: #52c41a; }
+  .afternoon-1 { background-color: #722ed1; }
+  .afternoon-2 { background-color: #eb2f96; }
+  .evening-1 { background-color: #fa8c16; }
+  .evening-2 { background-color: #13c2c2; }
+
+  .course-info {
+    p {
+      margin-bottom: 8px;
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .card-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
   }
 }
 
@@ -330,8 +348,8 @@ onMounted(() => {
   }
 }
 
-.action-buttons {
-  display: flex;
-  gap: 8px;
+:deep(.ant-card-meta-title) {
+  white-space: normal;
+  line-height: 1.5;
 }
 </style> 

@@ -4,9 +4,15 @@ const courseController = {
   // 获取可选课程列表
   async getAvailableCourses(ctx) {
     try {
-      const { student_id } = ctx.query
+      const { 
+        student_id,
+        subject_name,  // 课程名称关键字
+        teacher_name,  // 教师名称关键字
+        week_day,      // 上课星期
+        start_section  // 上课节次
+      } = ctx.query
       
-      const [rows] = await pool.execute(`
+      let sql = `
         SELECT 
           c.course_id,
           s.subject_name,
@@ -19,6 +25,8 @@ const courseController = {
           c.week_day,
           c.start_section,
           c.section_count,
+          c.classroom_id,
+          CONCAT(cl.building, cl.room_number) as classroom_name,
           CASE 
             WHEN cs.student_id IS NOT NULL THEN true 
             ELSE false 
@@ -32,18 +40,61 @@ const courseController = {
             WHEN '6' THEN '周六'
             WHEN '7' THEN '周日'
           END as week_day_text,
-          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
+          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text,
+          CASE c.start_section
+            WHEN 1 THEN '08:00-09:30'
+            WHEN 2 THEN '09:40-11:10'
+            WHEN 3 THEN '14:00-15:30'
+            WHEN 4 THEN '15:40-17:10'
+            WHEN 5 THEN '18:00-19:30'
+            WHEN 6 THEN '19:40-21:10'
+          END as time_text
         FROM Course c
         JOIN Subject s ON c.subject_id = s.subject_id
         JOIN Teacher t ON c.teacher_id = t.teacher_id
+        LEFT JOIN Classroom cl ON c.classroom_id = cl.classroom_id
         LEFT JOIN CourseSelection cs ON c.course_id = cs.course_id AND cs.student_id = ?
         WHERE c.student_count < c.max_students
-        ORDER BY c.week_day, c.start_section
-      `, [student_id])
+      `
+      const params = [student_id]
+
+      // 添加搜索条件
+      if (subject_name) {
+        sql += ` AND s.subject_name LIKE ?`
+        params.push(`%${subject_name}%`)
+      }
+
+      if (teacher_name) {
+        sql += ` AND t.name LIKE ?`
+        params.push(`%${teacher_name}%`)
+      }
+
+      if (week_day) {
+        sql += ` AND c.week_day = ?`
+        params.push(week_day)
+      }
+
+      if (start_section) {
+        sql += ` AND c.start_section = ?`
+        params.push(start_section)
+      }
+
+      sql += ` ORDER BY c.week_day, c.start_section`
+
+      const [rows] = await pool.execute(sql, params)
+
+      // 处理教室显示格式
+      const formattedRows = rows.map(row => ({
+        ...row,
+        classroom_display: row.classroom_id ? 
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+          '待定',
+        course_time: `${row.week_day_text} ${row.time_text}`
+      }));
 
       ctx.body = {
         success: true,
-        data: rows
+        data: formattedRows
       }
     } catch (error) {
       console.error('获取可选课程列表错误:', error)
@@ -279,17 +330,46 @@ const courseController = {
           c.section_count,
           c.class_hours,
           c.student_count,
-          c.max_students
+          c.max_students,
+          c.classroom_id,
+          CONCAT(cl.building, cl.room_number) as classroom_name,
+          CASE c.week_day
+            WHEN '1' THEN '周一'
+            WHEN '2' THEN '周二'
+            WHEN '3' THEN '周三'
+            WHEN '4' THEN '周四'
+            WHEN '5' THEN '周五'
+            WHEN '6' THEN '周六'
+            WHEN '7' THEN '周日'
+          END as week_day_text,
+          CASE c.start_section
+            WHEN 1 THEN '08:00-09:30'
+            WHEN 2 THEN '09:40-11:10'
+            WHEN 3 THEN '14:00-15:30'
+            WHEN 4 THEN '15:40-17:10'
+            WHEN 5 THEN '18:00-19:30'
+            WHEN 6 THEN '19:40-21:10'
+          END as time_text
         FROM Course c
         JOIN Subject s ON c.subject_id = s.subject_id
         JOIN Teacher t ON c.teacher_id = t.teacher_id
+        LEFT JOIN Classroom cl ON c.classroom_id = cl.classroom_id
         WHERE c.teacher_id = ?
         ORDER BY c.week_day, c.start_section
       `, [teacher_id])
 
+      // 处理教室显示格式
+      const formattedRows = rows.map(row => ({
+        ...row,
+        classroom_display: row.classroom_id ? 
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+          '待定',
+        course_time: `${row.week_day_text} ${row.time_text}`
+      }));
+
       ctx.body = {
         success: true,
-        data: rows
+        data: formattedRows
       }
     } catch (error) {
       console.error('获取教师课表错误:', error)
@@ -316,18 +396,47 @@ const courseController = {
           c.section_count,
           c.class_hours,
           c.student_count,
-          c.max_students
+          c.max_students,
+          c.classroom_id,
+          CONCAT(cl.building, cl.room_number) as classroom_name,
+          CASE c.week_day
+            WHEN '1' THEN '周一'
+            WHEN '2' THEN '周二'
+            WHEN '3' THEN '周三'
+            WHEN '4' THEN '周四'
+            WHEN '5' THEN '周五'
+            WHEN '6' THEN '周六'
+            WHEN '7' THEN '周日'
+          END as week_day_text,
+          CASE c.start_section
+            WHEN 1 THEN '08:00-09:30'
+            WHEN 2 THEN '09:40-11:10'
+            WHEN 3 THEN '14:00-15:30'
+            WHEN 4 THEN '15:40-17:10'
+            WHEN 5 THEN '18:00-19:30'
+            WHEN 6 THEN '19:40-21:10'
+          END as time_text
         FROM CourseSelection cs
         JOIN Course c ON cs.course_id = c.course_id
         JOIN Subject s ON c.subject_id = s.subject_id
         JOIN Teacher t ON c.teacher_id = t.teacher_id
+        LEFT JOIN Classroom cl ON c.classroom_id = cl.classroom_id
         WHERE cs.student_id = ?
         ORDER BY c.week_day, c.start_section
       `, [student_id])
 
+      // 处理教室显示格式
+      const formattedRows = rows.map(row => ({
+        ...row,
+        classroom_display: row.classroom_id ? 
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+          '待定',
+        course_time: `${row.week_day_text} ${row.time_text}`
+      }));
+
       ctx.body = {
         success: true,
-        data: rows
+        data: formattedRows
       }
     } catch (error) {
       console.error('获取学生课表错误:', error)
@@ -356,6 +465,9 @@ const courseController = {
           c.week_day,
           c.start_section,
           c.section_count,
+          t.name as teacher_name,
+          t.title as teacher_title,
+          CONCAT(cl.building, cl.room_number) as classroom_name,
           CASE c.week_day
             WHEN '1' THEN '周一'
             WHEN '2' THEN '周二'
@@ -365,9 +477,18 @@ const courseController = {
             WHEN '6' THEN '周六'
             WHEN '7' THEN '周日'
           END as week_day_text,
-          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
+          CASE c.start_section
+            WHEN 1 THEN '08:00-09:30'
+            WHEN 2 THEN '09:40-11:10'
+            WHEN 3 THEN '14:00-15:30'
+            WHEN 4 THEN '15:40-17:10'
+            WHEN 5 THEN '18:00-19:30'
+            WHEN 6 THEN '19:40-21:10'
+          END as time_text
         FROM Course c
         JOIN Subject s ON c.subject_id = s.subject_id
+        JOIN Teacher t ON c.teacher_id = t.teacher_id
+        LEFT JOIN Classroom cl ON c.classroom_id = cl.classroom_id
         WHERE c.course_id = ?
       `, [course_id])
 
@@ -411,6 +532,8 @@ const courseController = {
           c.class_hours,
           c.student_count,
           c.max_students,
+          c.classroom_id,
+          CONCAT(cl.building, cl.room_number) as classroom_name,
           CASE c.week_day
             WHEN '1' THEN '周一'
             WHEN '2' THEN '周二'
@@ -420,19 +543,36 @@ const courseController = {
             WHEN '6' THEN '周六'
             WHEN '7' THEN '周日'
           END as week_day_text,
-          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text
+          CASE c.start_section
+            WHEN 1 THEN '08:00-09:30'
+            WHEN 2 THEN '09:40-11:10'
+            WHEN 3 THEN '14:00-15:30'
+            WHEN 4 THEN '15:40-17:10'
+            WHEN 5 THEN '18:00-19:30'
+            WHEN 6 THEN '19:40-21:10'
+          END as time_text
         FROM Student stu
         JOIN CourseClass cc ON stu.class_id = cc.class_id
         JOIN Course c ON cc.course_id = c.course_id
         JOIN Subject s ON c.subject_id = s.subject_id
         JOIN Teacher t ON c.teacher_id = t.teacher_id
+        LEFT JOIN Classroom cl ON c.classroom_id = cl.classroom_id
         WHERE stu.student_id = ?
         ORDER BY c.week_day, c.start_section
       `, [student_id])
 
+      // 处理教室显示格式
+      const formattedRows = rows.map(row => ({
+        ...row,
+        classroom_display: row.classroom_id ? 
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+          '待定',
+        course_time: `${row.week_day_text} ${row.time_text}`
+      }));
+
       ctx.body = {
         success: true,
-        data: rows
+        data: formattedRows
       }
     } catch (error) {
       console.error('获取班级必修课程错误:', error)

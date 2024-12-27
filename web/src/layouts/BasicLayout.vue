@@ -153,7 +153,6 @@ const handleLogout = async () => {
 
 .content {
   margin: 24px;
-  padding: 24px;
   background: #fff;
   min-height: 280px;
   border-radius: 4px;

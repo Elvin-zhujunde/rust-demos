@@ -10,8 +10,8 @@ const studentCourseController = {
         SELECT 
           c.course_id,
           s.subject_name,
-          s.class_hours,
           s.credits,
+          s.class_hours,
           t.name as teacher_name,
           t.title as teacher_title,
           c.student_count,
@@ -19,6 +19,8 @@ const studentCourseController = {
           c.week_day,
           c.start_section,
           c.section_count,
+          c.classroom_id,
+          CONCAT(cl.building, cl.room_number) as classroom_name,
           CASE c.week_day
             WHEN '1' THEN '周一'
             WHEN '2' THEN '周二'
@@ -28,24 +30,38 @@ const studentCourseController = {
             WHEN '6' THEN '周六'
             WHEN '7' THEN '周日'
           END as week_day_text,
-          CONCAT('第', c.start_section, '-', c.start_section + c.section_count - 1, '节') as section_text,
-          cs.selection_date,
-          g.grade
+          CASE c.start_section
+            WHEN 1 THEN '08:00-09:30'
+            WHEN 2 THEN '09:40-11:10'
+            WHEN 3 THEN '14:00-15:30'
+            WHEN 4 THEN '15:40-17:10'
+            WHEN 5 THEN '18:00-19:30'
+            WHEN 6 THEN '19:40-21:10'
+          END as time_text
         FROM CourseSelection cs
         JOIN Course c ON cs.course_id = c.course_id
         JOIN Subject s ON c.subject_id = s.subject_id
         JOIN Teacher t ON c.teacher_id = t.teacher_id
-        LEFT JOIN Grades g ON cs.student_id = g.student_id AND cs.course_id = g.course_id
+        LEFT JOIN Classroom cl ON c.classroom_id = cl.classroom_id
         WHERE cs.student_id = ?
         ORDER BY c.week_day, c.start_section
       `, [student_id])
 
+      // 处理教室显示格式
+      const formattedRows = rows.map(row => ({
+        ...row,
+        classroom_display: row.classroom_id ? 
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+          '待定',
+        course_time: `${row.week_day_text} ${row.time_text}`
+      }))
+
       ctx.body = {
         success: true,
-        data: rows
+        data: formattedRows
       }
     } catch (error) {
-      console.error('获取学生课程错误:', error)
+      console.error('获取学生课程列表错误:', error)
       ctx.status = 500
       ctx.body = {
         success: false,

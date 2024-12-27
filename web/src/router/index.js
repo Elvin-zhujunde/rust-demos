@@ -66,6 +66,12 @@ const routes = [
       },
       // 公共路由
       {
+        path: 'course/:id',
+        name: 'CourseDetail',
+        component: () => import('../views/Course/CourseDetail.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('../views/Profile.vue'),
