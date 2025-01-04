@@ -4,13 +4,18 @@
       <template #title>
         <div class="card-title">
           <h2>{{ courseInfo.subject_name }}</h2>
-          <div class="card-title-right">
-            <a-button
-              v-if="isTeacher"
-              type="primary"
+          <div class="action-buttons">
+            <a-button type="primary" @click="showChat = true">
+              <template #icon><MessageOutlined /></template>
+              课程聊天室
+            </a-button>
+            <a-button 
+              v-if="isTeacher" 
+              type="primary" 
               @click="showCreateTaskModal"
             >
-              发布教学任务
+              <template #icon><PlusOutlined /></template>
+              发布任务
             </a-button>
           </div>
         </div>
@@ -45,6 +50,7 @@
         <a-table
           :columns="taskColumns"
           :data-source="taskList"
+          :pagination="false"
           :loading="loading"
           rowKey="task_id"
         >
@@ -239,7 +245,6 @@
               </a-form>
             </div>
           </template>
-
           <!-- 教师查看提交列表部分 -->
           <template v-else>
             <div class="submissions-list">
@@ -300,16 +305,55 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- 聊天室抽屉 -->
+    <a-drawer
+      v-model:visible="showChat"
+      title="课程聊天室"
+      placement="right"
+      :width="600"
+      :bodyStyle="{ padding: 0 }"
+    >
+      <div class="chat-room">
+        <div class="chat-messages" ref="messageContainer">
+          <div v-for="msg in messages" :key="msg.message_id" 
+               :class="['message', { 'my-message': isMyMessage(msg) }]">
+            <div class="message-header">
+              <span class="sender-name">
+                {{ msg.sender_name }}
+                <a-tag v-if="msg.sender_type === 'teacher'" color="blue">老师</a-tag>
+              </span>
+              <span class="message-time">{{ formatTime(msg.created_at) }}</span>
+            </div>
+            <div class="message-content">{{ msg.content }}</div>
+          </div>
+        </div>
+        
+        <div class="chat-input">
+          <a-input
+            v-model:value="newMessage"
+            placeholder="输入消息..."
+            @pressEnter="sendMessage"
+            size="large"
+          >
+            <template #suffix>
+              <a-button type="primary" size="large" @click="sendMessage">发送</a-button>
+            </template>
+          </a-input>
+        </div>
+      </div>
+    </a-drawer>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import { message } from "ant-design-vue";
-import axios from "axios";
-import { UploadOutlined } from "@ant-design/icons-vue";
-import dayjs from "dayjs";
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { message } from 'ant-design-vue'
+import { UploadOutlined, PlusOutlined, MessageOutlined } from "@ant-design/icons-vue"
+import { io } from 'socket.io-client'
+import axios from 'axios'
+import dayjs from "dayjs"
 
 const route = useRoute();
 const courseId = route.params.id;
@@ -317,6 +361,18 @@ const isTeacher = ref(localStorage.getItem("role") === "teacher");
 const loading = ref(false);
 const courseInfo = ref({});
 const taskList = ref([]);
+
+// 用户相关
+const role = ref(localStorage.getItem("role"));
+const studentId = ref('');
+const teacherId = ref('');
+
+// 聊天室相关
+const showChat = ref(false);
+const messages = ref([]);
+const newMessage = ref('');
+const messageContainer = ref(null);
+const socket = ref(null);
 
 // 表格列定义
 const taskColumns = [
@@ -508,7 +564,7 @@ const viewTaskDetail = async (task) => {
       if (isTeacher.value) {
         await fetchSubmissionList(task.task_id);
       } else {
-        // 获取学生的提交记��
+        // 获取学生的提交记录
         const submissionRes = await axios.get(
           `/task/${task.task_id}/my-submission`,
           {
@@ -747,22 +803,19 @@ const submissionColumns = [
   },
 ];
 
-// 获取用户信息
-const role = ref(localStorage.getItem("role"));
-const studentId = ref(null);
-
 // 初始化用户信息
 const initUserInfo = () => {
   console.log("localStorage 内容:", {
     role: localStorage.getItem("role"),
     userId: localStorage.getItem("userId"),
-    student_id: localStorage.getItem("student_id"),
-    studentId: localStorage.getItem("studentId"),
+    teacherId: localStorage.getItem("teacherId"),
+    teacher_id: localStorage.getItem("teacher_id")
   });
+
+  role.value = localStorage.getItem("role");
 
   // 如果是学生角色,设置学生ID
   if (role.value === "student") {
-    // 尝试从不同的key获取学生ID
     studentId.value =
       localStorage.getItem("userId") ||
       localStorage.getItem("student_id") ||
@@ -773,8 +826,102 @@ const initUserInfo = () => {
     if (!studentId.value) {
       message.warning("未找到学生信息,请重新登录");
     }
+  } else if (role.value === "teacher") {
+    // 如果是教师角色，设置教师ID
+    teacherId.value =
+      localStorage.getItem("userId") ||
+      localStorage.getItem("teacher_id") ||
+      localStorage.getItem("teacherId");
+
+    console.log("当前教师ID:", teacherId.value);
+
+    if (!teacherId.value) {
+      message.warning("未找到教师信息,请重新登录");
+    }
   }
 };
+
+// 聊天室相关方法
+const scrollToBottom = () => {
+  if (messageContainer.value) {
+    setTimeout(() => {
+      messageContainer.value.scrollTop = messageContainer.value.scrollHeight;
+    }, 100);
+  }
+};
+
+const connectSocket = () => {
+  socket.value = io('http://localhost:8088', {
+    transports: ['websocket']
+  });
+
+  socket.value.on('connect', () => {
+    console.log('WebSocket连接成功');
+    socket.value.emit('joinRoom', {
+      courseId: courseInfo.value.course_id,
+      userId: role.value === 'student' ? studentId.value : teacherId.value,
+      userType: role.value
+    });
+  });
+
+  socket.value.on('history', (data) => {
+    messages.value = data;
+    scrollToBottom();
+  });
+
+  socket.value.on('message', (msg) => {
+    messages.value.push(msg);
+    scrollToBottom();
+  });
+
+  socket.value.on('error', (error) => {
+    console.error('WebSocket错误:', error);
+    message.error(error.message || '发送消息失败');
+  });
+};
+
+const sendMessage = () => {
+  if (!newMessage.value.trim()) return;
+  
+  socket.value.emit('message', {
+    courseId: courseInfo.value.course_id,
+    userId: role.value === 'student' ? studentId.value : teacherId.value,
+    userType: role.value,
+    content: newMessage.value.trim()
+  });
+  
+  newMessage.value = '';
+};
+
+const isMyMessage = (msg) => {
+  const currentUserId = role.value === 'student' ? studentId.value : teacherId.value;
+  return msg.sender_id === currentUserId && msg.sender_type === role.value;
+};
+
+const formatTime = (timestamp) => {
+  const date = new Date(timestamp);
+  return date.toLocaleString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// 监听聊天室显示状态
+watch(showChat, (newVal) => {
+  if (newVal && !socket.value) {
+    connectSocket();
+  }
+});
+
+// 组卸载时断开连接
+onUnmounted(() => {
+  if (socket.value) {
+    socket.value.emit('leaveRoom', {
+      courseId: courseInfo.value.course_id
+    });
+    socket.value.disconnect();
+  }
+});
 
 onMounted(() => {
   initUserInfo(); // 初始化用户信息
@@ -797,6 +944,11 @@ onMounted(() => {
   h2 {
     margin: 0;
   }
+
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+  }
 }
 
 .task-list {
@@ -810,6 +962,7 @@ onMounted(() => {
 .action-buttons {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 .task-detail {
@@ -830,4 +983,110 @@ onMounted(() => {
     }
   }
 }
+
+.chat-room {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f7f7f7;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  margin-bottom: 0;
+}
+
+.message {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease-in-out;
+  width: 100%;
+}
+
+.my-message {
+  align-items: flex-end;
+}
+
+.message:not(.my-message) {
+  align-items: flex-start;
+}
+
+.message-header {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.my-message .message-header {
+  flex-direction: row-reverse;
+}
+
+.sender-name {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-time {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.message-content {
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  word-break: break-word;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-size: 15px;
+  line-height: 1.6;
+  display: inline-block;
+  max-width: 80%;
+  min-width: 60px;
+}
+
+.my-message .message-content {
+  background: #1890ff;
+  color: #fff;
+  border-top-right-radius: 4px;
+}
+
+.message:not(.my-message) .message-content {
+  background: #fff;
+  color: #333;
+  border-top-left-radius: 4px;
+}
+
+.chat-input {
+  padding: 16px 24px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+}
+
+.chat-input :deep(.ant-input) {
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 15px;
+}
+
+.chat-input :deep(.ant-input-group-addon) {
+  padding: 0;
+  background: transparent;
+}
+
+.chat-input :deep(.ant-btn) {
+  border: none;
+  height: 100%;
+  padding: 0 24px;
+  font-size: 15px;
+}
 </style>
+
