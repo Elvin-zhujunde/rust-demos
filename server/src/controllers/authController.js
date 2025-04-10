@@ -3,10 +3,11 @@ const pool = require('../config/database')
 const authController = {
   async login(ctx) {
     try {
-      const { username, password, role } = ctx.request.body
+      const { code, name, password, role } = ctx.request.body
+      console.log({ code, name, password, role });
 
       // 管理员登录判断
-      if (username === 'root' && password === '123456') {
+      if (code === 'root' && password === '123456') {
         ctx.body = {
           success: true,
           role: 'admin',
@@ -23,8 +24,8 @@ const authController = {
       // 查询用户
       const [users] = await pool.execute(`
         SELECT * FROM ${tableName} 
-        WHERE ${idField} = ? AND password = ?
-      `, [username, password])
+        WHERE ${idField} = ? AND password = ? AND name = ?
+      `, [code, password, name])
 
       if (users.length === 0) {
         ctx.status = 401

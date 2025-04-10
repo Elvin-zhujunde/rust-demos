@@ -66,6 +66,7 @@
         <a-table
           :columns="taskColumns"
           :data-source="taskList"
+          :pagination="false"
           :loading="loading"
           rowKey="task_id"
         >

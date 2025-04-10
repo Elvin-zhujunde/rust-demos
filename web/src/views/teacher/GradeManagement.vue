@@ -37,6 +37,69 @@
         </a-descriptions-item>
       </a-descriptions>
 
+      <!-- 成绩统计 -->
+      <div class="grade-statistics">
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <a-card class="stat-card pass-rate">
+              <statistic
+                title="通过率"
+                :value="gradeStatistics.passRate"
+                :precision="1"
+                suffix="%"
+                :value-style="{ color: '#3f8600' }"
+              >
+                <template #prefix>
+                  <rise-outlined />
+                </template>
+              </statistic>
+            </a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card class="stat-card excellent">
+              <statistic
+                title="优秀"
+                :value="gradeStatistics.excellentCount"
+                :suffix="`人 (${gradeStatistics.excellentRate}%)`"
+                :value-style="{ color: '#cf1322' }"
+              >
+                <template #prefix>
+                  <trophy-outlined />
+                </template>
+              </statistic>
+            </a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card class="stat-card good">
+              <statistic
+                title="良好"
+                :value="gradeStatistics.goodCount"
+                :suffix="`人 (${gradeStatistics.goodRate}%)`"
+                :value-style="{ color: '#1890ff' }"
+              >
+                <template #prefix>
+                  <like-outlined />
+                </template>
+              </statistic>
+            </a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card class="stat-card average">
+              <statistic
+                title="一般"
+                :value="gradeStatistics.averageCount"
+                :suffix="`人 (${gradeStatistics.averageRate}%)`"
+                :value-style="{ color: '#faad14' }"
+              >
+                <template #prefix>
+                  <check-outlined />
+                </template>
+              </statistic>
+            </a-card>
+          </a-col>
+        </a-row>
+      </div>
+
       <!-- 成绩列表 -->
       <a-table
         :columns="columns"
@@ -77,10 +140,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, onMounted, computed } from 'vue'
+import { message, Statistic } from 'ant-design-vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeftOutlined } from '@ant-design/icons-vue'
+import { 
+  ArrowLeftOutlined,
+  RiseOutlined,
+  TrophyOutlined,
+  LikeOutlined,
+  CheckOutlined
+} from '@ant-design/icons-vue'
 import axios from 'axios'
 
 const router = useRouter()
@@ -184,6 +253,44 @@ const goBack = () => {
   router.back()
 }
 
+// 成绩统计计算
+const gradeStatistics = computed(() => {
+  const totalStudents = gradeList.value.length
+  if (totalStudents === 0) return {
+    passRate: 0,
+    excellentCount: 0,
+    excellentRate: 0,
+    goodCount: 0,
+    goodRate: 0,
+    averageCount: 0,
+    averageRate: 0
+  }
+
+  const grades = gradeList.value.map(item => Number(item.grade) || 0)
+  
+  // 统计各等级人数
+  const excellent = grades.filter(grade => grade >= 86).length
+  const good = grades.filter(grade => grade >= 73 && grade < 86).length
+  const average = grades.filter(grade => grade >= 60 && grade < 73).length
+  const passing = grades.filter(grade => grade >= 60).length
+
+  // 计算百分比
+  const passRate = (passing / totalStudents) * 100
+  const excellentRate = (excellent / totalStudents) * 100
+  const goodRate = (good / totalStudents) * 100
+  const averageRate = (average / totalStudents) * 100
+
+  return {
+    passRate: Number(passRate.toFixed(1)),
+    excellentCount: excellent,
+    excellentRate: Number(excellentRate.toFixed(1)),
+    goodCount: good,
+    goodRate: Number(goodRate.toFixed(1)),
+    averageCount: average,
+    averageRate: Number(averageRate.toFixed(1))
+  }
+})
+
 onMounted(() => {
   fetchData()
 })
@@ -202,6 +309,39 @@ onMounted(() => {
 
     h2 {
       margin: 0;
+    }
+  }
+}
+
+.grade-statistics {
+  margin-bottom: 24px;
+  
+  .stat-card {
+    text-align: center;
+    border-radius: 8px;
+    
+    &.pass-rate {
+      :deep(.ant-statistic-title) {
+        color: #3f8600;
+      }
+    }
+    
+    &.excellent {
+      :deep(.ant-statistic-title) {
+        color: #cf1322;
+      }
+    }
+    
+    &.good {
+      :deep(.ant-statistic-title) {
+        color: #1890ff;
+      }
+    }
+    
+    &.average {
+      :deep(.ant-statistic-title) {
+        color: #faad14;
+      }
     }
   }
 }
