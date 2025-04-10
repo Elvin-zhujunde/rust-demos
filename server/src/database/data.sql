@@ -74,7 +74,6 @@ CREATE TABLE Student (
     FOREIGN KEY (class_id) REFERENCES Class(class_id)
 );
 
-
 -- 在创建基础表部分添加教室表
 CREATE TABLE Classroom (
     classroom_id VARCHAR(20) PRIMARY KEY,
@@ -84,7 +83,20 @@ CREATE TABLE Classroom (
     UNIQUE KEY `uk_building_room` (building, room_number)
 );
 
-
+-- 添加教室数据（移到Course表创建之前）
+INSERT INTO Classroom (classroom_id, building, room_number, capacity) VALUES
+-- 第一教学楼
+('CR101', '第一教学楼', '101', 120),
+('CR102', '第一教学楼', '102', 80),
+('CR103', '第一教学楼', '103', 80),
+('CR201', '第一教学楼', '201', 60),
+('CR202', '第一教学楼', '202', 60),
+-- 第二教学楼
+('CR301', '第二教学楼', '301', 100),
+('CR302', '第二教学楼', '302', 100),
+('CR303', '第二教学楼', '303', 80),
+('CR401', '第二教学楼', '401', 60),
+('CR402', '第二教学楼', '402', 60);
 
 -- 2.7 课程表
 CREATE TABLE Course (
@@ -113,6 +125,7 @@ CREATE TABLE CourseSelection (
     student_id VARCHAR(20),
     course_id VARCHAR(20),
     selection_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TINYINT DEFAULT 0 COMMENT '0进行中，1已结束，2已评价',
     PRIMARY KEY (student_id, course_id),
     FOREIGN KEY (student_id) REFERENCES Student(student_id),
     FOREIGN KEY (course_id) REFERENCES Course(course_id)
@@ -182,7 +195,31 @@ CREATE TABLE IF NOT EXISTS TaskSubmission (
   UNIQUE KEY unique_submission (task_id, student_id)
 ) ENGINE=InnoDB AUTO_INCREMENT=1;
 
+-- 创建聊天消息表
+CREATE TABLE IF NOT EXISTS ChatMessage (
+  message_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  course_id VARCHAR(20) NOT NULL,
+  sender_id VARCHAR(20) NOT NULL,
+  sender_type ENUM('student', 'teacher') NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (course_id) REFERENCES Course(course_id) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1;
 
+-- 创建课程评价表
+CREATE TABLE CourseEvaluation (
+    evaluation_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(20) NOT NULL,
+    course_id VARCHAR(20) NOT NULL,
+    teacher_id VARCHAR(20) NOT NULL,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5) COMMENT '评分1-5星',
+    content TEXT NOT NULL COMMENT '评价内容',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES Student(student_id),
+    FOREIGN KEY (course_id) REFERENCES Course(course_id),
+    FOREIGN KEY (teacher_id) REFERENCES Teacher(teacher_id),
+    UNIQUE KEY unique_evaluation (student_id, course_id) COMMENT '每个学生只能评价同一门课程一次'
+) ENGINE=InnoDB AUTO_INCREMENT=1;
 
 -- 添加教学任务相关的触发器
 DELIMITER //
@@ -206,21 +243,6 @@ BEGIN
 END //
 
 DELIMITER ;
-
--- 添加教室数据
-INSERT INTO Classroom (classroom_id, building, room_number, capacity) VALUES
--- 第一教学楼
-('CR101', '第一教学楼', '101', 120),
-('CR102', '第一教学楼', '102', 80),
-('CR103', '第一教学楼', '103', 80),
-('CR201', '第一教学楼', '201', 60),
-('CR202', '第一教学楼', '202', 60),
--- 第二教学楼
-('CR301', '第二教学楼', '301', 100),
-('CR302', '第二教学楼', '302', 100),
-('CR303', '第二教学楼', '303', 80),
-('CR401', '第二教学楼', '401', 60),
-('CR402', '第二教学楼', '402', 60);
 
 -- 3. 创建触发器和存储过程
 DELIMITER $$
@@ -302,12 +324,8 @@ END$$
 
 DELIMITER ;
 
-
-
 -- 4. 插入基础数据
 -- 4.1 院系数据
-
-
 INSERT INTO Department (department_id, department_name) VALUES
 ('D001', '计算机学院'),
 ('D002', '电子信息学院'),
@@ -522,11 +540,7 @@ INSERT INTO CourseClass (course_id, class_id) VALUES
 ('CRS002', 'C001'),  -- 大学英语课程分配给计科一班
 ('CRS003', 'C003');  -- 数据结构课程分配给软件一班
 
-
-
-
-
--- 6. 创建视图
+-- 7. 创建视图
 -- 6.1 课程信息与授课教师视图
 CREATE VIEW vw_Course_Teacher AS
 SELECT 
@@ -579,7 +593,6 @@ FROM CourseSelection CS
 JOIN Student Stu ON CS.student_id = Stu.student_id
 JOIN Course C ON CS.course_id = C.course_id
 JOIN Subject S ON C.subject_id = S.subject_id;
-
 
 -- 7. 设置用户权限
 -- 7.1 创建用户

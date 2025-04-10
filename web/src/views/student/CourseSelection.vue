@@ -12,6 +12,45 @@
         </div>
       </template>
 
+      <!-- 推荐课程部分 -->
+      <a-collapse v-model:activeKey="activeCollapseKey" class="recommendation-section">
+        <a-collapse-panel key="1" :header="'课程推荐 (' + recommendedCourses.length + ')'">
+          <div class="recommendation-cards">
+            <a-row :gutter="[16, 16]">
+              <a-col :span="8" v-for="course in recommendedCourses" :key="course.course_id">
+                <a-card hoverable class="recommendation-card">
+                  <template #title>
+                    <div class="recommendation-card-title">
+                      {{ course.subject_name }}
+                      <a-tag :color="course.recommendation_reason === '同班同学热选课程' ? 'red' : 'blue'">
+                        {{ course.recommendation_reason }}
+                      </a-tag>
+                    </div>
+                  </template>
+                  <div class="recommendation-card-content">
+                    <p><strong>教师：</strong>{{ course.teacher_name }} ({{ course.teacher_title }})</p>
+                    <p><strong>时间：</strong>{{ course.course_time }}</p>
+                    <p><strong>教室：</strong>{{ course.classroom_display }}</p>
+                    <p><strong>学分：</strong>{{ course.credits }}</p>
+                    <p><strong>容量：</strong>{{ course.student_count }}/{{ course.max_students }}</p>
+                  </div>
+                  <template #actions>
+                    <a-button 
+                      type="primary" 
+                      :disabled="course.student_count >= course.max_students"
+                      @click="handleSelect(course)"
+                      :loading="course.loading"
+                    >
+                      {{ course.student_count >= course.max_students ? '已满' : '选课' }}
+                    </a-button>
+                  </template>
+                </a-card>
+              </a-col>
+            </a-row>
+          </div>
+        </a-collapse-panel>
+      </a-collapse>
+
       <!-- 添加搜索表单 -->
       <div class="search-form">
         <a-form layout="inline" :model="searchForm">
@@ -82,15 +121,24 @@
 
           <!-- 操作列 -->
           <template v-if="column.dataIndex === 'action'">
-            <a-button
-              v-if="!record.is_selected"
-              type="primary"
-              size="small"
-              :disabled="record.student_count >= record.max_students"
-              @click="handleSelect(record)"
-            >
-              选课
-            </a-button>
+            <div class="action-buttons">
+              <a-button
+                v-if="!record.is_selected"
+                type="primary"
+                size="small"
+                :disabled="record.student_count >= record.max_students"
+                @click="handleSelect(record)"
+              >
+                选课
+              </a-button>
+              <a-button
+                type="link"
+                size="small"
+                @click="showCourseComments(record)"
+              >
+                查看评论
+              </a-button>
+            </div>
           </template>
         </template>
       </a-table>
@@ -121,6 +169,16 @@
         </a-button>
       </template>
     </a-modal>
+
+    <!-- 评论弹窗 -->
+    <a-modal
+      v-model:visible="showComments"
+      :title="currentCourse?.subject_name + ' - 课程评论'"
+      :footer="null"
+      width="600px"
+    >
+      <CourseComments :course-id="currentCourse?.course_id" />
+    </a-modal>
   </div>
 </template>
 
@@ -129,6 +187,7 @@ import { ref, onMounted } from "vue";
 import { message } from "ant-design-vue";
 import axios from "axios";
 import CourseSchedule from "@/components/CourseSchedule.vue";
+import CourseComments from '@/components/Course/CourseComments.vue';
 
 const loading = ref(false);
 const courseList = ref([]);
@@ -136,6 +195,8 @@ const classCourseVisible = ref(false);
 const scheduleRef = ref(null);
 const applying = ref(false);
 const studentId = ref(localStorage.getItem("userId"));
+const activeCollapseKey = ref(['1']); // 默认展开推荐面板
+const recommendedCourses = ref([]);
 
 // 表格列定义
 const columns = [
@@ -179,7 +240,7 @@ const columns = [
   {
     title: "操作",
     dataIndex: "action",
-    width: "15%",
+    width: "20%",
   },
 ];
 
@@ -221,7 +282,7 @@ const fetchCourses = async () => {
   }
 };
 
-// 搜索处���函数
+// 搜索处理函数
 const handleSearch = () => {
   fetchCourses();
 };
@@ -237,19 +298,39 @@ const handleReset = () => {
   fetchCourses();
 };
 
-// 选课
+// 获取推荐课程
+const fetchRecommendedCourses = async () => {
+  try {
+    const response = await axios.get(`/recommended-courses/${studentId.value}`);
+    if (response.data.success) {
+      recommendedCourses.value = response.data.data;
+    }
+  } catch (error) {
+    console.error("获取推荐课程失败:", error);
+    message.error("获取推荐课程失败");
+  }
+};
+
+// 选课成功后的处理
+const handleSelectSuccess = async () => {
+  await Promise.all([
+    fetchCourses(),
+    fetchRecommendedCourses()
+  ]);
+};
+
+// 修改选课方法
 const handleSelect = async (course) => {
   course.loading = true;
   try {
-    const studentId = localStorage.getItem("userId");
     const response = await axios.post("/select-course", {
-      student_id: studentId,
+      student_id: studentId.value,
       course_id: course.course_id,
     });
 
     if (response.data.success) {
       message.success("选课成功");
-      await fetchCourses(); // 刷新课程列表
+      await handleSelectSuccess();
     }
   } catch (error) {
     console.error("选课失败:", error);
@@ -285,8 +366,19 @@ const applyClassCourses = async () => {
   }
 };
 
+// 添加评论弹窗相关
+const showComments = ref(false);
+const currentCourse = ref(null);
+
+// 显示课程评论
+const showCourseComments = (course) => {
+  currentCourse.value = course;
+  showComments.value = true;
+};
+
 onMounted(() => {
   fetchCourses();
+  fetchRecommendedCourses();
 });
 </script>
 
@@ -310,6 +402,51 @@ onMounted(() => {
 .card-title {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+.recommendation-section {
+  margin-bottom: 24px;
+
+  .recommendation-cards {
+    .recommendation-card {
+      height: 100%;
+      
+      .recommendation-card-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .recommendation-card-content {
+        p {
+          margin-bottom: 8px;
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+
+      :deep(.ant-card-actions) {
+        background: #fafafa;
+      }
+    }
+  }
+}
+
+:deep(.ant-collapse-header) {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+:deep(.ant-tag) {
+  margin: 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
   align-items: center;
 }
 </style>

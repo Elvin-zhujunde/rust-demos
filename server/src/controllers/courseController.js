@@ -4,14 +4,14 @@ const courseController = {
   // 获取可选课程列表
   async getAvailableCourses(ctx) {
     try {
-      const { 
+      const {
         student_id,
         subject_name,  // 课程名称关键字
         teacher_name,  // 教师名称关键字
         week_day,      // 上课星期
         start_section  // 上课节次
       } = ctx.query
-      
+
       let sql = `
         SELECT 
           c.course_id,
@@ -86,8 +86,8 @@ const courseController = {
       // 处理教室显示格式
       const formattedRows = rows.map(row => ({
         ...row,
-        classroom_display: row.classroom_id ? 
-          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+        classroom_display: row.classroom_id ?
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` :
           '待定',
         course_time: `${row.week_day_text} ${row.time_text}`
       }));
@@ -204,7 +204,7 @@ const courseController = {
       try {
         // 添加选课记录
         await connection.execute(
-          'INSERT INTO CourseSelection (student_id, course_id) VALUES (?, ?)',
+          'INSERT INTO CourseSelection (student_id, course_id, status) VALUES (?, ?, 0)',
           [student_id, course_id]
         )
 
@@ -319,7 +319,7 @@ const courseController = {
   async getTeacherSchedule(ctx) {
     try {
       const { teacher_id } = ctx.params
-      
+
       const [rows] = await pool.execute(`
         SELECT 
           c.course_id,
@@ -361,8 +361,8 @@ const courseController = {
       // 处理教室显示格式
       const formattedRows = rows.map(row => ({
         ...row,
-        classroom_display: row.classroom_id ? 
-          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+        classroom_display: row.classroom_id ?
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` :
           '待定',
         course_time: `${row.week_day_text} ${row.time_text}`
       }));
@@ -385,7 +385,7 @@ const courseController = {
   async getStudentSchedule(ctx) {
     try {
       const { student_id } = ctx.params
-      
+
       const [rows] = await pool.execute(`
         SELECT 
           c.course_id,
@@ -428,8 +428,8 @@ const courseController = {
       // 处理教室显示格式
       const formattedRows = rows.map(row => ({
         ...row,
-        classroom_display: row.classroom_id ? 
-          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+        classroom_display: row.classroom_id ?
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` :
           '待定',
         course_time: `${row.week_day_text} ${row.time_text}`
       }));
@@ -452,7 +452,7 @@ const courseController = {
   async getCourseDetail(ctx) {
     try {
       const { course_id } = ctx.params
-      
+
       const [rows] = await pool.execute(`
         SELECT 
           c.course_id,
@@ -519,7 +519,7 @@ const courseController = {
   async getClassRequiredCourses(ctx) {
     try {
       const { student_id } = ctx.params
-      
+
       // 获取学生所在班级的必修课程
       const [rows] = await pool.execute(`
         SELECT 
@@ -564,8 +564,8 @@ const courseController = {
       // 处理教室显示格式
       const formattedRows = rows.map(row => ({
         ...row,
-        classroom_display: row.classroom_id ? 
-          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` : 
+        classroom_display: row.classroom_id ?
+          `${row.classroom_id.match(/^CR(\d)(\d{2})$/)[1]}教-${row.classroom_id.match(/^CR(\d)(\d{2})$/)[2]}` :
           '待定',
         course_time: `${row.week_day_text} ${row.time_text}`
       }));
@@ -649,7 +649,7 @@ const courseController = {
 
           if (existing.length === 0) {
             await connection.execute(
-              'INSERT INTO CourseSelection (student_id, course_id) VALUES (?, ?)',
+              'INSERT INTO CourseSelection (student_id, course_id, status) VALUES (?, ?, 0)',
               [student_id, course.course_id]
             )
           }
@@ -674,6 +674,100 @@ const courseController = {
         success: false,
         message: '服务器错误'
       }
+    }
+  },
+
+  // 结束课程
+  async endCourse(ctx) {
+    const { id } = ctx.params;
+    const connection = await pool.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+
+      // 检查课程是否存在
+      const [course] = await connection.query(
+        'SELECT * FROM Course WHERE course_id = ?',
+        [id]
+      );
+
+      if (course.length === 0) {
+        ctx.status = 400;
+        ctx.body = {
+          success: false,
+          message: '课程不存在'
+        };
+        return;
+      }
+
+      // 检查是否已经有学生选课
+      const [selections] = await connection.query(
+        'SELECT * FROM CourseSelection WHERE course_id = ?',
+        [id]
+      );
+
+      if (selections.length === 0) {
+        ctx.status = 400;
+        ctx.body = {
+          success: false,
+          message: '该课程没有学生选课'
+        };
+        return;
+      }
+
+      // 更新所有选课记录的状态为已结束
+      await connection.query(
+        'UPDATE CourseSelection SET status = 1 WHERE course_id = ?',
+        [id]
+      );
+
+      await connection.commit();
+      ctx.body = {
+        success: true,
+        message: '课程已结束'
+      };
+    } catch (error) {
+      await connection.rollback();
+      console.error('结束课程失败:', error);
+      ctx.status = 500;
+      ctx.body = {
+        success: false,
+        message: '结束课程失败'
+      };
+    } finally {
+      connection.release();
+    }
+  },
+
+  // 获取课程评论
+  async getCourseComments(ctx) {
+    const { id } = ctx.params;
+    
+    try {
+      const [comments] = await pool.query(`
+        SELECT 
+          e.evaluation_id as comment_id,
+          e.rating,
+          e.content,
+          e.created_at,
+          s.name as student_name
+        FROM CourseEvaluation e
+        JOIN Student s ON e.student_id = s.student_id
+        WHERE e.course_id = ?
+        ORDER BY e.created_at DESC
+      `, [id]);
+
+      ctx.body = {
+        success: true,
+        data: comments
+      };
+    } catch (error) {
+      console.error('获取课程评论失败:', error);
+      ctx.status = 500;
+      ctx.body = {
+        success: false,
+        message: '获取课程评论失败'
+      };
     }
   }
 }

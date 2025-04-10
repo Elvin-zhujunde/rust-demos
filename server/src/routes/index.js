@@ -81,11 +81,15 @@ router.get('/student/:id', studentController.getStudentById)
 router.get('/student-courses/:student_id', studentCourseController.getStudentCourses)
 // 这里出错了，因为没有定义 post 方法
 router.post('/course-selection', studentCourseController.enrollCourse)  // 这个方法还未定义
+router.post('/course-evaluation', studentCourseController.evaluateCourse)
+router.get('/recommended-courses/:student_id', studentCourseController.getRecommendedCourses)
 
 // 选课相关路由
 router.get('/available-courses', courseController.getAvailableCourses)
 router.post('/select-course', courseController.selectCourse)
 router.post('/drop-course', courseController.dropCourse)
+router.post('/course/:id/end', courseController.endCourse)
+router.get('/course/:id/comments', courseController.getCourseComments)
 
 // 成绩管理相关路由
 router.get('/teacher-grades/:teacher_id', gradeController.getTeacherGrades)

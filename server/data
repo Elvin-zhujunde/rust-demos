@@ -367,15 +367,15 @@ INSERT INTO Course (course_id, subject_id, teacher_id, semester, student_count, 
 ('Crs005', 'S005', 'T004', 1, 0, 60, 48);
 
 -- 选课表
-INSERT INTO CourseSelection (student_id, course_id, selection_date) VALUES
-('S2021001', 'Crs001', '2021-09-10'),
-('S2021001', 'Crs002', '2021-09-11'),
-('S2021002', 'Crs001', '2021-09-10'),
-('S2021002', 'Crs003', '2021-09-12'),
-('S2021003', 'Crs002', '2021-09-10'),
-('S2021003', 'Crs003', '2021-09-12'),
-('S2021004', 'Crs004', '2021-09-13'),
-('S2021005', 'Crs005', '2021-09-14');
+INSERT INTO CourseSelection (student_id, course_id, status, selection_date) VALUES
+('S2021001', 'Crs001', 1,'2021-09-10'),
+('S2021001', 'Crs002', 1,'2021-09-11'),
+('S2021002', 'Crs001', 1,'2021-09-10'),
+('S2021002', 'Crs003', 1,'2021-09-12'),
+('S2021003', 'Crs002', 1,'2021-09-10'),
+('S2021003', 'Crs003', 1,'2021-09-12'),
+('S2021004', 'Crs004', 1,'2021-09-13'),
+('S2021005', 'Crs005', 1,'2021-09-14');
 
 -- 成绩表
 INSERT INTO Grades (student_id, course_id, grade) VALUES

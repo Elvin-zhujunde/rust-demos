@@ -10,43 +10,90 @@
         </div>
       </template>
 
-      <div class="course-grid">
-        <a-row :gutter="[16, 16]">
-          <a-col :span="6" v-for="course in courseList" :key="course.course_id">
-            <a-card 
-              hoverable 
-              class="course-card"
-              @click="goToCourseDetail(course)"
-            >
-              <template #cover>
-                <div class="course-card-header" :class="getTimeClass(course.start_section)">
-                  {{ course.week_day_text }} {{ course.section_text }}
-                </div>
-              </template>
-              <a-card-meta :title="course.subject_name">
-                <template #description>
-                  <div class="course-info">
-                    <p>教师：{{ course.teacher_name }} ({{ course.teacher_title }})</p>
-                    <p>教室：{{ course.classroom_name }}</p>
-                    <p>课程容量：{{ course.student_count }}/{{ course.max_students }}</p>
-                    <p>学分：{{ course.credits }}</p>
-                  </div>
-                </template>
-              </a-card-meta>
-              <div class="card-actions">
-                <a-button
-                  type="danger"
-                  size="small"
-                  @click.stop="handleDrop(course)"
-                  :loading="course.loading"
+      <!-- 课程状态切换 -->
+      <a-tabs v-model:activeKey="activeTab">
+        <a-tab-pane key="ongoing" tab="进行中的课程">
+          <div class="course-grid">
+            <a-row :gutter="[16, 16]">
+              <a-col :span="6" v-for="course in ongoingCourses" :key="course.course_id">
+                <a-card 
+                  hoverable 
+                  class="course-card"
+                  @click="goToCourseDetail(course)"
                 >
-                  退课
-                </a-button>
-              </div>
-            </a-card>
-          </a-col>
-        </a-row>
-      </div>
+                  <template #cover>
+                    <div class="course-card-header" :class="getTimeClass(course.start_section)">
+                      {{ course.week_day_text }} {{ course.section_text }}
+                    </div>
+                  </template>
+                  <a-card-meta :title="course.subject_name">
+                    <template #description>
+                      <div class="course-info">
+                        <p>教师：{{ course.teacher_name }} ({{ course.teacher_title }})</p>
+                        <p>教室：{{ course.classroom_name }}</p>
+                        <p>课程容量：{{ course.student_count }}/{{ course.max_students }}</p>
+                        <p>学分：{{ course.credits }}</p>
+                      </div>
+                    </template>
+                  </a-card-meta>
+                  <div class="card-actions">
+                    <a-button
+                      type="danger"
+                      size="small"
+                      @click.stop="handleDrop(course)"
+                      :loading="course.loading"
+                    >
+                      退课
+                    </a-button>
+                  </div>
+                </a-card>
+              </a-col>
+            </a-row>
+          </div>
+        </a-tab-pane>
+
+        <a-tab-pane key="completed" tab="已完成的课程">
+          <div class="course-grid">
+            <a-row :gutter="[16, 16]">
+              <a-col :span="6" v-for="course in completedCourses" :key="course.course_id">
+                <a-card 
+                  hoverable 
+                  class="course-card"
+                  @click="goToCourseDetail(course)"
+                >
+                  <template #cover>
+                    <div class="course-card-header completed">
+                      {{ course.week_day_text }} {{ course.section_text }}
+                    </div>
+                  </template>
+                  <a-card-meta :title="course.subject_name">
+                    <template #description>
+                      <div class="course-info">
+                        <p>教师：{{ course.teacher_name }} ({{ course.teacher_title }})</p>
+                        <p>教室：{{ course.classroom_name }}</p>
+                        <p>课程容量：{{ course.student_count }}/{{ course.max_students }}</p>
+                        <p>学分：{{ course.credits }}</p>
+                        <p>状态：{{ course.status === 1 ? '待评价' : '已评价' }}</p>
+                      </div>
+                    </template>
+                  </a-card-meta>
+                  <div class="card-actions">
+                    <a-button
+                      v-if="course.status === 1"
+                      type="primary"
+                      size="small"
+                      @click.stop="showEvaluationModal(course)"
+                    >
+                      评价课程
+                    </a-button>
+                    <a-tag v-else color="green">已评价</a-tag>
+                  </div>
+                </a-card>
+              </a-col>
+            </a-row>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
     </a-card>
 
     <!-- 课表弹窗 -->
@@ -62,11 +109,34 @@
         :student-id="studentId"
       />
     </a-modal>
+
+    <!-- 评价课程弹窗 -->
+    <a-modal
+      v-model:open="evaluationVisible"
+      title="课程评价"
+      @ok="submitEvaluation"
+      :confirmLoading="evaluationLoading"
+    >
+      <div class="evaluation-form">
+        <div class="rating-section">
+          <span class="label">课程评分：</span>
+          <a-rate v-model:value="evaluationForm.rating" />
+        </div>
+        <div class="content-section">
+          <span class="label">评价内容：</span>
+          <a-textarea
+            v-model:value="evaluationForm.content"
+            :rows="4"
+            placeholder="请输入您对本课程的评价..."
+          />
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { message } from "ant-design-vue";
 import { useRouter } from 'vue-router';
 import axios from "axios";
@@ -78,6 +148,26 @@ const courseList = ref([]);
 const scheduleVisible = ref(false);
 const scheduleRef = ref(null);
 const studentId = ref(localStorage.getItem("userId"));
+const activeTab = ref('ongoing');
+
+// 评价相关
+const evaluationVisible = ref(false);
+const evaluationLoading = ref(false);
+const currentCourse = ref(null);
+const evaluationForm = ref({
+  rating: 0,
+  content: ''
+});
+
+// 计算属性：进行中的课程
+const ongoingCourses = computed(() => {
+  return courseList.value.filter(course => course.status === 0);
+});
+
+// 计算属性：已完成的课程
+const completedCourses = computed(() => {
+  return courseList.value.filter(course => course.status > 0);
+});
 
 // 获取课程列表
 const fetchCourses = async () => {
@@ -98,6 +188,11 @@ const fetchCourses = async () => {
 
 // 退课
 const handleDrop = async (course) => {
+  if (course.status !== 0) {
+    message.error('已结束的课程不能退课');
+    return;
+  }
+  
   course.loading = true;
   try {
     const studentId = localStorage.getItem('userId');
@@ -115,6 +210,50 @@ const handleDrop = async (course) => {
     message.error(error.response?.data?.message || '退课失败');
   } finally {
     course.loading = false;
+  }
+};
+
+// 显示评价弹窗
+const showEvaluationModal = (course) => {
+  currentCourse.value = course;
+  evaluationForm.value = {
+    rating: 0,
+    content: ''
+  };
+  evaluationVisible.value = true;
+};
+
+// 提交课程评价
+const submitEvaluation = async () => {
+  if (!evaluationForm.value.rating) {
+    message.warning('请选择评分');
+    return;
+  }
+  if (!evaluationForm.value.content.trim()) {
+    message.warning('请输入评价内容');
+    return;
+  }
+
+  evaluationLoading.value = true;
+  try {
+    const response = await axios.post('/course-evaluation', {
+      student_id: studentId.value,
+      course_id: currentCourse.value.course_id,
+      teacher_id: currentCourse.value.teacher_id,
+      rating: evaluationForm.value.rating,
+      content: evaluationForm.value.content
+    });
+
+    if (response.data.success) {
+      message.success('评价提交成功');
+      evaluationVisible.value = false;
+      await fetchCourses(); // 刷新课程列表
+    }
+  } catch (error) {
+    console.error('评价提交失败:', error);
+    message.error(error.response?.data?.message || '评价提交失败');
+  } finally {
+    evaluationLoading.value = false;
   }
 };
 
@@ -178,6 +317,10 @@ onMounted(() => {
     text-align: center;
     font-weight: bold;
     color: white;
+
+    &.completed {
+      background-color: #8c8c8c;
+    }
   }
 
   .morning-1 { background-color: #1890ff; }
@@ -203,12 +346,29 @@ onMounted(() => {
   }
 }
 
+.evaluation-form {
+  .rating-section {
+    margin-bottom: 16px;
+  }
+
+  .content-section {
+    .label {
+      display: block;
+      margin-bottom: 8px;
+    }
+  }
+
+  .label {
+    font-weight: bold;
+  }
+}
+
 :deep(.ant-card-head-title h2) {
   margin: 0;
 }
 
 :deep(.ant-modal-body) {
-  padding: 0;
+  padding: 24px;
 }
 
 :deep(.ant-card-meta-title) {

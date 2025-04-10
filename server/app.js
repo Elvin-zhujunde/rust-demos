@@ -4,9 +4,17 @@ const cors = require('koa-cors')
 const serve = require('koa-static')
 const path = require('path')
 const fs = require('fs')
+const http = require('http')
+const initWebSocket = require('./src/websocket')
 require('dotenv').config()
 
 const app = new Koa()
+
+// 创建HTTP服务器
+const server = http.createServer(app.callback())
+
+// 初始化WebSocket服务
+const io = initWebSocket(server)
 
 // 数据库连接
 require('./src/config/database')
@@ -74,8 +82,10 @@ app.use(router.allowedMethods())
 
 const PORT = process.env.PORT || 8088
 
-app.listen(PORT, () => {
+// 使用HTTP服务器启动应用
+server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`)
+  console.log(`WebSocket server is running`)
   console.log(`Static files served from ${publicDir}`)
   console.log(`File uploads stored in ${uploadDir}`)
 }) 
