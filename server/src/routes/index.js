@@ -9,6 +9,7 @@ const gradeController = require('../controllers/gradeController')
 const logController = require('../controllers/logController')
 const adminController = require('../controllers/adminController')
 const teachingTaskController = require('../controllers/teachingTaskController')
+const aiController = require('../controllers/aiController')
 
 // 操作日志记录函数
 const logOperation = async (ctx, next) => {
@@ -74,7 +75,7 @@ router.get('/teacher/:teacher_id', teacherController.getTeacherInfo)
 router.get('/teacher-courses/:teacher_id', teacherController.getTeacherCourses)
 router.get('/course-students/:course_id', teacherController.getCourseStudents)
 
-// 学生信���接口
+// 学生信息接口
 router.get('/student/:id', studentController.getStudentById)
 
 // 学生课程相关接口
@@ -142,6 +143,10 @@ router.get('/task/:task_id/submissions', teachingTaskController.getTaskSubmissio
 router.get('/task/:task_id/my-submission', teachingTaskController.getMySubmission)
 router.post('/task-submission', teachingTaskController.submitAssignment)
 router.put('/task-submission/:submission_id', teachingTaskController.gradeSubmission)
+
+// AI 助手相关路由
+router.get('/ai/chat-history/:student_id', aiController.getChatHistory)
+router.post('/ai/send-message', aiController.sendMessage)
 
 // 测试静态文件访问
 router.get('/test-static', async (ctx) => {

@@ -40,6 +40,12 @@ const routes = [
         meta: { requiresAuth: true, role: 'student' }
       },
       {
+        path: 'ai-assistant',
+        name: 'AIAssistant',
+        component: () => import('../views/student/AIAssistant.vue'),
+        meta: { requiresAuth: true, role: 'student' }
+      },
+      {
         path: 'grades',
         name: 'Grades',
         component: () => import('../views/student/Grades.vue'),

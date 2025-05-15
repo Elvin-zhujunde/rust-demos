@@ -25,6 +25,11 @@
             <span>我的课程</span>
             <router-link to="/my-courses" />
           </a-menu-item>
+          <a-menu-item key="ai-assistant">
+            <robot-outlined />
+            <span>AI 助手</span>
+            <router-link to="/ai-assistant" />
+          </a-menu-item>
         </template>
 
         <!-- 教师菜单 -->
@@ -90,6 +95,7 @@ import {
   EditOutlined,
   TeamOutlined,
   UserOutlined,
+  RobotOutlined,
 } from "@ant-design/icons-vue";
 
 const router = useRouter();

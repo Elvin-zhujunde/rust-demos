@@ -212,7 +212,7 @@ CREATE TABLE CourseEvaluation (
     student_id VARCHAR(20) NOT NULL,
     course_id VARCHAR(20) NOT NULL,
     teacher_id VARCHAR(20) NOT NULL,
-    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5) COMMENT '评分1-5星',
+    rating INT NOT NULL  COMMENT '评分1-5星',
     content TEXT NOT NULL COMMENT '评价内容',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_id) REFERENCES Student(student_id),
@@ -619,3 +619,12 @@ GRANT ALL PRIVILEGES ON TeachingManagementSystem.* TO 'admin_user'@'localhost';
 
 FLUSH PRIVILEGES;
 
+-- 创建学生与AI助教聊天历史表
+CREATE TABLE IF NOT EXISTS StudentAIChatHistory (
+    chat_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(20) NOT NULL,
+    message_type ENUM('user', 'assistant') NOT NULL COMMENT '消息类型：用户或AI助手',
+    content TEXT NOT NULL COMMENT '聊天内容',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES Student(student_id) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1;

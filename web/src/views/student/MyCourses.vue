@@ -120,7 +120,7 @@
       <div class="evaluation-form">
         <div class="rating-section">
           <span class="label">课程评分：</span>
-          <a-rate v-model:value="evaluationForm.rating" />
+          <a-input-number v-model:value="evaluationForm.rating" :min="0" :max="100" :step="1" style="width: 120px;" />
         </div>
         <div class="content-section">
           <span class="label">评价内容：</span>
