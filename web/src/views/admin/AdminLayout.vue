@@ -5,11 +5,7 @@
         <span v-if="!collapsed">教学管理系统</span>
         <span v-else>TMS</span>
       </div>
-      <a-menu
-        v-model:selectedKeys="selectedKeys"
-        theme="dark"
-        mode="inline"
-      >
+      <a-menu v-model:selectedKeys="selectedKeys" theme="dark" mode="inline">
         <a-menu-item key="home">
           <home-outlined />
           <span>首页</span>
@@ -21,6 +17,28 @@
           <span>操作日志</span>
           <router-link to="/admin/logs" />
         </a-menu-item>
+
+        <a-sub-menu key="system">
+          <template #title>
+            <setting-outlined />
+            <span>系统管理</span>
+          </template>
+          <a-menu-item key="users">
+            <span>用户管理</span>
+            <router-link to="/admin/users" />
+          </a-menu-item>
+          <a-menu-item key="courses">
+            <book-outlined />
+            <span>课程管理</span>
+            <router-link to="/admin/courses" />
+          </a-menu-item>
+
+          <a-menu-item key="classrooms">
+            <bank-outlined />
+            <span>教室管理</span>
+            <router-link to="/admin/classrooms" />
+          </a-menu-item>
+        </a-sub-menu>
       </a-menu>
     </a-layout-sider>
 
@@ -31,7 +49,7 @@
           <a-button type="link" @click="handleLogout">退出登录</a-button>
         </div>
       </a-layout-header>
-      
+
       <a-layout-content class="content">
         <router-view></router-view>
       </a-layout-content>
@@ -40,18 +58,27 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { HomeOutlined, HistoryOutlined } from '@ant-design/icons-vue'
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import {
+  HomeOutlined,
+  HistoryOutlined,
+  SettingOutlined,
+  UserOutlined,
+  TeamOutlined,
+  SafetyOutlined,
+  BookOutlined,
+  BankOutlined,
+} from "@ant-design/icons-vue";
 
-const router = useRouter()
-const collapsed = ref(false)
-const selectedKeys = ref(['home'])
+const router = useRouter();
+const collapsed = ref(false);
+const selectedKeys = ref(["home"]);
 
 const handleLogout = () => {
-  localStorage.clear()
-  router.push('/login')
-}
+  localStorage.clear();
+  router.push("/login");
+};
 </script>
 
 <style scoped>
@@ -95,4 +122,4 @@ const handleLogout = () => {
   min-height: 280px;
   border-radius: 4px;
 }
-</style> 
+</style>

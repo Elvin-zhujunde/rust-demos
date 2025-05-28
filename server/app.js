@@ -64,6 +64,7 @@ app.use(koaBody({
 // 错误处理中间件
 app.use(async (ctx, next) => {
   try {
+    ctx.set('Cache-Control', 'no-store')// 禁止缓存
     await next()
   } catch (err) {
     console.error('请求处理错误:', err)

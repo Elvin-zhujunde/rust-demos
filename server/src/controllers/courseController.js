@@ -681,7 +681,7 @@ const courseController = {
   async endCourse(ctx) {
     const { id } = ctx.params;
     const connection = await pool.getConnection();
-    
+
     try {
       await connection.beginTransaction();
 
@@ -742,7 +742,7 @@ const courseController = {
   // 获取课程评论
   async getCourseComments(ctx) {
     const { id } = ctx.params;
-    
+
     try {
       const [comments] = await pool.query(`
         SELECT 
@@ -768,6 +768,117 @@ const courseController = {
         success: false,
         message: '获取课程评论失败'
       };
+    }
+  },
+
+  // 工具：字段校验
+  validateCourse(data) {
+    const errors = []
+    if (!data.subject_id) errors.push('课程名称必填')
+    if (!data.teacher_id) errors.push('授课教师必填')
+    if (!['16', '32', '48', '64'].includes(String(data.class_hours))) errors.push('学时必须为16/32/48/64')
+    if (!data.credits || data.credits < 1 || data.credits > 6) errors.push('学分范围1-6')
+    if (!['1', '2', '3', '4', '5', '6', '7'].includes(String(data.week_day))) errors.push('星期必须为1-7')
+    if (!data.start_section || data.start_section < 1 || data.start_section > 6) errors.push('起始节1-6')
+    if (!data.section_count || data.section_count < 1 || data.section_count > 3) errors.push('连续节数1-3')
+    if (!data.classroom_id) errors.push('教室必填')
+    if (!data.max_students || data.max_students < 1) errors.push('最大容量必填')
+    return errors
+  },
+
+  // 管理员课程列表
+  async adminListCourses(ctx) {
+    try {
+      const [rows] = await pool.query(`
+        SELECT c.*, s.subject_name, t.name as teacher_name, cl.building, cl.room_number,
+          CONCAT(cl.building, cl.room_number) as classroom_name
+        FROM Course c
+        LEFT JOIN Subject s ON c.subject_id = s.subject_id
+        LEFT JOIN Teacher t ON c.teacher_id = t.teacher_id
+        LEFT JOIN Classroom cl ON c.classroom_id = cl.classroom_id
+        ORDER BY c.course_id DESC
+      `)
+      ctx.body = { success: true, data: rows }
+    } catch (e) {
+      ctx.status = 500
+      ctx.body = { success: false, message: '获取课程失败' }
+    }
+  },
+
+  // 管理员新增课程
+  async adminCreateCourse(ctx) {
+    const data = ctx.request.body
+    try {
+      // 生成主键
+      const course_id = 'C' + Date.now()
+      await pool.query(
+        `INSERT INTO Course (course_id, subject_id, teacher_id, semester, student_count, max_students, classroom_id, class_hours, week_day, start_section, section_count)
+         VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
+        [
+          course_id, data.subject_id, data.teacher_id, 1, data.max_students, data.classroom_id,
+          String(data.class_hours), String(data.week_day), data.start_section, data.section_count,
+        ]
+      )
+      ctx.body = { success: true, message: '新增成功' }
+    } catch (e) {
+      ctx.status = 500
+      ctx.body = { success: false, message: '新增失败' }
+    }
+  },
+
+  // 管理员编辑课程
+  async adminUpdateCourse(ctx) {
+    const { course_id } = ctx.params
+    const data = ctx.request.body
+    try {
+      await pool.query(
+        `UPDATE Course SET subject_id=?, teacher_id=?, max_students=?, classroom_id=?, class_hours=?, week_day=?, start_section=?, section_count=?
+         WHERE course_id=?`,
+        [
+          data.subject_id, data.teacher_id, data.max_students, data.classroom_id,
+          String(data.class_hours), String(data.week_day), data.start_section, data.section_count, course_id
+        ]
+      )
+      ctx.body = { success: true, message: '编辑成功' }
+    } catch (e) {
+      console.log(e);
+
+      ctx.status = 500
+      ctx.body = { success: false, message: '编辑失败' }
+    }
+  },
+
+  // 管理员删除课程
+  async adminDeleteCourse(ctx) {
+    const { course_id } = ctx.params
+    try {
+      await pool.query('DELETE FROM Course WHERE course_id=?', [course_id])
+      ctx.body = { success: true, message: '删除成功' }
+    } catch (e) {
+      ctx.status = 500
+      ctx.body = { success: false, message: '删除失败' }
+    }
+  },
+
+  // 获取所有课程（下拉用）
+  async getAllSubjects(ctx) {
+    try {
+      const [rows] = await pool.query('SELECT subject_id, subject_name FROM Subject ORDER BY subject_name')
+      ctx.body = { success: true, data: rows }
+    } catch (e) {
+      ctx.status = 500
+      ctx.body = { success: false, message: '获取课程列表失败' }
+    }
+  },
+
+  // 获取所有教室（下拉用）
+  async getAllClassrooms(ctx) {
+    try {
+      const [rows] = await pool.query('SELECT classroom_id, building, room_number FROM Classroom ORDER BY building, room_number')
+      ctx.body = { success: true, data: rows }
+    } catch (e) {
+      ctx.status = 500
+      ctx.body = { success: false, message: '获取教室列表失败' }
     }
   }
 }

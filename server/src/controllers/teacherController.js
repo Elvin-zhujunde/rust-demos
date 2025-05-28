@@ -309,11 +309,7 @@ const teacherController = {
   // 获取专业列表
   async getMajors(ctx) {
     try {
-      const { department_id } = ctx.query
-      const [rows] = await pool.execute(
-        'SELECT major_id, major_name FROM Major WHERE department_id = ?',
-        [department_id]
-      )
+      const [rows] = await pool.query('SELECT * FROM Major')
       ctx.body = {
         success: true,
         data: rows
@@ -323,7 +319,7 @@ const teacherController = {
       ctx.status = 500
       ctx.body = {
         success: false,
-        message: '服务器错误'
+        message: '获取专业列表失败'
       }
     }
   },
@@ -331,11 +327,7 @@ const teacherController = {
   // 获取班级列表
   async getClasses(ctx) {
     try {
-      const { major_id } = ctx.query
-      const [rows] = await pool.execute(
-        'SELECT class_id, class_name FROM Class WHERE major_id = ?',
-        [major_id]
-      )
+      const [rows] = await pool.query('SELECT * FROM Class')
       ctx.body = {
         success: true,
         data: rows
@@ -345,8 +337,19 @@ const teacherController = {
       ctx.status = 500
       ctx.body = {
         success: false,
-        message: '服务器错误'
+        message: '获取班级列表失败'
       }
+    }
+  },
+
+  // 获取所有教师（下拉用）
+  async getAllTeachers(ctx) {
+    try {
+      const [rows] = await pool.query('SELECT teacher_id, name FROM Teacher ORDER BY name')
+      ctx.body = { success: true, data: rows }
+    } catch (e) {
+      ctx.status = 500
+      ctx.body = { success: false, message: '获取教师列表失败' }
     }
   }
 }

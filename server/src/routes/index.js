@@ -10,6 +10,9 @@ const logController = require('../controllers/logController')
 const adminController = require('../controllers/adminController')
 const teachingTaskController = require('../controllers/teachingTaskController')
 const aiController = require('../controllers/aiController')
+const systemController = require('../controllers/systemController')
+const userController = require('../controllers/userController')
+const classroomController = require("../controllers/classroomController")
 
 // 操作日志记录函数
 const logOperation = async (ctx, next) => {
@@ -19,7 +22,7 @@ const logOperation = async (ctx, next) => {
     if (ctx.body?.success) {
       const method = ctx.method
       let operationType = 'select'
-      
+
       // 根据HTTP方法判断操作类型
       switch (method) {
         case 'POST':
@@ -80,8 +83,7 @@ router.get('/student/:id', studentController.getStudentById)
 
 // 学生课程相关接口
 router.get('/student-courses/:student_id', studentCourseController.getStudentCourses)
-// 这里出错了，因为没有定义 post 方法
-router.post('/course-selection', studentCourseController.enrollCourse)  // 这个方法还未定义
+router.post('/course-selection', studentCourseController.enrollCourse)
 router.post('/course-evaluation', studentCourseController.evaluateCourse)
 router.get('/recommended-courses/:student_id', studentCourseController.getRecommendedCourses)
 
@@ -148,16 +150,39 @@ router.put('/task-submission/:submission_id', teachingTaskController.gradeSubmis
 router.get('/ai/chat-history/:student_id', aiController.getChatHistory)
 router.post('/ai/send-message', aiController.sendMessage)
 
+// 用户管理路由
+router.get('/users', userController.getUsers)
+router.post('/users', userController.createUser)
+router.put('/users/:id', userController.updateUser)
+router.delete('/users/:id', userController.deleteUser)
+
+// 管理员课程管理
+router.get('/admin/courses', courseController.adminListCourses)
+router.post('/admin/courses', courseController.adminCreateCourse)
+router.put('/admin/courses/:course_id', courseController.adminUpdateCourse)
+router.delete('/admin/courses/:course_id', courseController.adminDeleteCourse)
+
+// 教师、课程、教室下拉接口
+router.get('/teachers', teacherController.getAllTeachers)
+router.get('/subjects', courseController.getAllSubjects)
+router.get('/classrooms', courseController.getAllClassrooms)
+
+// 教室管理路由
+router.get('/classroomss', classroomController.getClassrooms)
+router.post('/classrooms', classroomController.createClassroom)
+router.put('/classrooms/:classroom_id', classroomController.updateClassroom)
+router.delete('/classrooms/:classroom_id', classroomController.deleteClassroom)
+
 // 测试静态文件访问
 router.get('/test-static', async (ctx) => {
   const fs = require('fs');
   const path = require('path');
   const publicDir = path.join(__dirname, '../../public');
   const uploadDir = path.join(publicDir, 'uploads');
-  
+
   // 列出所有上传的文件
   const files = fs.readdirSync(uploadDir);
-  
+
   ctx.body = {
     success: true,
     data: {

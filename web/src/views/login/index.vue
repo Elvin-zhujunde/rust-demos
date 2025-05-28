@@ -3,21 +3,21 @@
     <div class="carousel-container">
       <a-carousel class="carousel" autoplay>
         <div class="carousel-item">
-          <img src="@/assets/images/banner1.jpg" alt="教学管理">
+          <img src="@/assets/images/banner1.jpg" alt="教学管理" />
           <div class="carousel-content">
             <h2>智慧教学管理</h2>
             <p>打造现代化教学体验</p>
           </div>
         </div>
         <div class="carousel-item">
-          <img src="@/assets/images/banner2.jpg" alt="课程管理">
+          <img src="@/assets/images/banner2.jpg" alt="课程管理" />
           <div class="carousel-content">
             <h2>高效课程管理</h2>
             <p>便捷的课程管理系统</p>
           </div>
         </div>
         <div class="carousel-item">
-          <img src="@/assets/images/banner3.jpg" alt="学习体验">
+          <img src="@/assets/images/banner3.jpg" alt="学习体验" />
           <div class="carousel-content">
             <h2>优质学习体验</h2>
             <p>为师生提供优质服务</p>
@@ -25,22 +25,16 @@
         </div>
       </a-carousel>
     </div>
-    
+
     <div class="login-content">
       <div class="login-box">
         <h2>教学管理系统</h2>
-        <a-form
-          :model="formData"
-          @finish="handleSubmit"
-        >
+        <a-form :model="formData" @finish="handleSubmit">
           <a-form-item
             name="name"
             :rules="[{ required: true, message: '请输入姓名' }]"
           >
-            <a-input
-              v-model:value="formData.name"
-              placeholder="请输入姓名"
-            >
+            <a-input v-model:value="formData.name" placeholder="请输入姓名">
               <template #prefix>
                 <user-outlined />
               </template>
@@ -79,11 +73,17 @@
             <a-radio-group v-model:value="formData.role">
               <a-radio value="student">学生</a-radio>
               <a-radio value="teacher">教师</a-radio>
+              <a-radio value="admin">管理员</a-radio>
             </a-radio-group>
           </a-form-item>
 
           <a-form-item>
-            <a-button type="primary" html-type="submit" block :loading="loading">
+            <a-button
+              type="primary"
+              html-type="submit"
+              block
+              :loading="loading"
+            >
               登录
             </a-button>
           </a-form-item>
@@ -98,45 +98,63 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import { UserOutlined, LockOutlined, NumberOutlined } from '@ant-design/icons-vue'
-import axios from 'axios'
+import { ref, reactive } from "vue";
+import { useRouter } from "vue-router";
+import { message } from "ant-design-vue";
+import {
+  UserOutlined,
+  LockOutlined,
+  NumberOutlined,
+} from "@ant-design/icons-vue";
+import axios from "axios";
 
-const router = useRouter()
-const loading = ref(false)
+const router = useRouter();
+const loading = ref(false);
 
 const formData = reactive({
-  name: '',
-  code: '',
-  password: '',
-  role: 'student'
-})
+  name: "",
+  code: "",
+  password: "",
+  role: "student",
+});
 
 const handleSubmit = async () => {
   try {
-    loading.value = true
-    const response = await axios.post('/login', formData)
-    
-    if (response.data.success) {
-      localStorage.setItem('role', response.data.role)
-      localStorage.setItem('roleCode', response.data.roleCode)
-      localStorage.setItem('userId', response.data.userId)
-      localStorage.setItem('name', response.data.name)
+    loading.value = true;
+    // 判断是否为管理员
+    if (formData.name === "admin" && formData.password === "123456") {
+      localStorage.setItem("role", "admin");
+      localStorage.setItem("roleCode", "admin");
+      localStorage.setItem("userId", "admin");
+      localStorage.setItem("name", "admin");
+      message.success("登录成功");
+      await router.push("/admin/home");
+      return
+    }
+    const response = await axios.post("/login", formData);
 
-      message.success('登录成功')
-      await router.push('/home')
+    if (response.data.success) {
+      localStorage.setItem("role", response.data.role);
+      localStorage.setItem("roleCode", response.data.roleCode);
+      localStorage.setItem("userId", response.data.userId);
+      localStorage.setItem("name", response.data.name);
+      message.success("登录成功");
+      // 根据角色跳转到不同页面
+      if (response.data.role === "admin") {
+        await router.push("/admin/home");
+      } else {
+        await router.push("/home");
+      }
     } else {
-      message.error(response.data.message || '登录失败')
+      message.error(response.data.message || "登录失败");
     }
   } catch (error) {
-    console.error('登录错误:', error)
-    message.error(error.response?.data?.message || '登录失败，请检查网络连接')
+    console.error("登录错误:", error);
+    message.error(error.response?.data?.message || "登录失败，请检查网络连接");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 </script>
 
 <style scoped>
@@ -252,4 +270,4 @@ h2 {
 .form-footer a:hover {
   text-decoration: underline;
 }
-</style> 
+</style>

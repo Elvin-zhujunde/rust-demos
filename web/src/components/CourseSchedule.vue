@@ -153,7 +153,7 @@ const getCourse = (day, section) => {
 // 获取课程数据
 const fetchCourses = async () => {
   try {
-    let url = "/api/courses/schedule";
+    let url = "/courses/schedule";
     if (props.teacherId) {
       url = `/teacher-schedule/${props.teacherId}`;
     } else if (props.studentId && props.classCourses) {

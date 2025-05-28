@@ -3,6 +3,10 @@ import BasicLayout from '../layouts/BasicLayout.vue'
 import Home from '../views/Home.vue'
 import Login from '../views/login/index.vue'
 import AdminLayout from '../views/admin/AdminLayout.vue'
+import AdminHome from '../views/admin/Home.vue'
+import AdminUsers from '../views/admin/Users.vue'
+import AdminCourses from '../views/admin/Courses.vue'
+import AdminClassrooms from '../views/admin/Classrooms.vue'
 
 const routes = [
   {
@@ -92,14 +96,32 @@ const routes = [
       {
         path: 'home',
         name: 'AdminHome',
-        component: () => import('../views/admin/Home.vue'),
+        component: AdminHome,
         meta: { requiresAuth: true, role: 'admin' }
       },
       {
         path: 'logs',
         name: 'AdminLogs',
         component: () => import('../views/admin/Logs.vue'),
-        meta: { requiresAuth: true, role: 'admin' }
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: AdminUsers,
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'courses',
+        name: 'AdminCourses',
+        component: AdminCourses,
+        meta: { requiresAuth: true, requiresAdmin: true }
+      },
+      {
+        path: 'classrooms',
+        name: 'AdminClassrooms',
+        component: AdminClassrooms,
+        meta: { requiresAuth: true, role: 'admin' },
       }
     ]
   }
@@ -132,6 +154,6 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
-export default router 
+export default router
 
 
