@@ -17,13 +17,14 @@
           <span>操作日志</span>
           <router-link to="/admin/logs" />
         </a-menu-item>
-
         <a-sub-menu key="system">
           <template #title>
             <setting-outlined />
             <span>系统管理</span>
           </template>
           <a-menu-item key="users">
+            <bank-outlined />
+
             <span>用户管理</span>
             <router-link to="/admin/users" />
           </a-menu-item>
@@ -37,6 +38,12 @@
             <bank-outlined />
             <span>教室管理</span>
             <router-link to="/admin/classrooms" />
+          </a-menu-item>
+          <a-menu-item key="grades">
+            <bank-outlined />
+
+            <span>成绩管理</span>
+            <router-link to="/admin/grades" />
           </a-menu-item>
         </a-sub-menu>
       </a-menu>
@@ -76,7 +83,9 @@ const collapsed = ref(false);
 const selectedKeys = ref(["home"]);
 
 const handleLogout = () => {
+  const setTimeForm = localStorage.getItem("setTimeForm");
   localStorage.clear();
+  localStorage.setItem("setTimeForm", setTimeForm);
   router.push("/login");
 };
 </script>

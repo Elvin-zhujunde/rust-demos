@@ -6,17 +6,6 @@ const authController = {
       const { code, name, password, role } = ctx.request.body
       console.log({ code, name, password, role });
 
-      // 管理员登录判断
-      if (code === 'root' && password === '123456') {
-        ctx.body = {
-          success: true,
-          role: 'admin',
-          roleCode: 1,
-          message: '管理员登录成功'
-        }
-        return
-      }
-
       // 根据角色选择查询的表
       const tableName = role === 'teacher' ? 'Teacher' : 'Student'
       const idField = role === 'teacher' ? 'teacher_id' : 'student_id'

@@ -2,6 +2,7 @@
   <div class="courses-container">
     <div class="header">
       <a-button type="primary" @click="showModal()">新增课程</a-button>
+      <a-button style="margin-left: 8px;" type="primary" @click="setTime()">设置选课时间</a-button>
     </div>
     <a-table
       :columns="columns"
@@ -14,16 +15,19 @@
         <template v-if="column.key === 'action'">
           <a-space>
             <a @click="showModal(record)">编辑</a>
-            <a-popconfirm title="确定要删除吗？" @confirm="handleDelete(record)">
+            <a-popconfirm
+              title="确定要删除吗？"
+              @confirm="handleDelete(record)"
+            >
               <a class="danger">删除</a>
             </a-popconfirm>
           </a-space>
         </template>
         <template v-else-if="column.key === 'week_time'">
           <span>
-            周{{ weekDayText[record.week_day] }} 第{{ record.start_section }}节起 连{{
-              record.section_count
-            }}节
+            周{{ weekDayText[record.week_day] }} 第{{
+              record.start_section
+            }}节起 连{{ record.section_count }}节
           </span>
         </template>
       </template>
@@ -44,7 +48,10 @@
         :wrapper-col="{ span: 16 }"
       >
         <a-form-item label="课程名称" name="subject_id">
-          <a-select v-model:value="formState.subject_id" placeholder="请选择课程">
+          <a-select
+            v-model:value="formState.subject_id"
+            placeholder="请选择课程"
+          >
             <a-select-option
               v-for="s in subjects"
               :key="s.subject_id"
@@ -54,7 +61,10 @@
           </a-select>
         </a-form-item>
         <a-form-item label="授课教师" name="teacher_id">
-          <a-select v-model:value="formState.teacher_id" placeholder="请选择教师">
+          <a-select
+            v-model:value="formState.teacher_id"
+            placeholder="请选择教师"
+          >
             <a-select-option
               v-for="t in teachers"
               :key="t.teacher_id"
@@ -77,16 +87,25 @@
         <a-form-item label="上课时间" required>
           <a-space>
             <a-select v-model:value="formState.week_day" placeholder="星期">
-              <a-select-option v-for="(txt, val) in weekDayText" :key="val" :value="val"
+              <a-select-option
+                v-for="(txt, val) in weekDayText"
+                :key="val"
+                :value="val"
                 >周{{ txt }}</a-select-option
               >
             </a-select>
-            <a-select v-model:value="formState.start_section" placeholder="起始节">
+            <a-select
+              v-model:value="formState.start_section"
+              placeholder="起始节"
+            >
               <a-select-option v-for="i in 6" :key="i" :value="i"
                 >第{{ i }}节</a-select-option
               >
             </a-select>
-            <a-select v-model:value="formState.section_count" placeholder="连续节数">
+            <a-select
+              v-model:value="formState.section_count"
+              placeholder="连续节数"
+            >
               <a-select-option v-for="i in [1, 2, 3]" :key="i" :value="i"
                 >连{{ i }}节</a-select-option
               >
@@ -94,7 +113,10 @@
           </a-space>
         </a-form-item>
         <a-form-item label="教室" name="classroom_id">
-          <a-select v-model:value="formState.classroom_id" placeholder="请选择教室">
+          <a-select
+            v-model:value="formState.classroom_id"
+            placeholder="请选择教室"
+          >
             <a-select-option
               v-for="c in classrooms"
               :key="c.classroom_id"
@@ -105,6 +127,21 @@
         </a-form-item>
         <a-form-item label="最大容量" name="max_students">
           <a-input-number v-model:value="formState.max_students" :min="1" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+    <a-modal
+      v-model:visible="setTimeModalVisible"
+      title="设置选课时间"
+      @ok="handleSetTimeOk"
+      @cancel="setTimeModalVisible = false"
+    >
+      <a-form :model="setTimeForm" :rules="setTimeRules" ref="setTimeFormRef">
+        <a-form-item label="选课开始时间" name="start_time">
+          <a-date-picker v-model:value="setTimeForm.start_time" />
+        </a-form-item>
+        <a-form-item label="选课结束时间" name="end_time">
+          <a-date-picker v-model:value="setTimeForm.end_time" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -125,7 +162,13 @@ const subjects = ref([]);
 const classrooms = ref([]);
 const formState = ref({});
 const editId = ref(null);
-
+const setTimeModalVisible = ref(false);
+const setTimeForm = ref({});
+const setTimeRules = {
+  start_time: [{ required: true, message: "请选择选课开始时间" }],
+  end_time: [{ required: true, message: "请选择选课结束时间" }],
+};
+const setTimeFormRef = ref(null);
 const weekDayText = {
   1: "一",
   2: "二",
@@ -196,6 +239,21 @@ const fetchClassrooms = async () => {
     const res = await axios.get("/classrooms");
     classrooms.value = res.data.data;
   } catch {}
+};
+
+const setTime = () => {
+  setTimeModalVisible.value = true;
+
+};
+const handleSetTimeOk = async () => {
+  try {
+    await setTimeFormRef.value.validate();
+    localStorage.setItem("setTimeForm", JSON.stringify(setTimeForm.value));
+    setTimeModalVisible.value = false;
+    message.success("设置选课时间成功");
+  } catch {
+    message.error("设置选课时间失败");
+  }
 };
 
 const showModal = (record) => {

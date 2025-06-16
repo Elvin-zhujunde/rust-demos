@@ -15,3 +15,5 @@ INSERT INTO ChatMessage (course_id, sender_id, sender_type, content) VALUES
 ('CS101', 'S001', 'student', '谢谢老师！'),
 ('CS102', 'T002', 'teacher', '有关下周作业的问题可以在这里讨论。'),
 ('CS102', 'S002', 'student', '老师，我想请教一个问题...'); 
+
+

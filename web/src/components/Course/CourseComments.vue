@@ -1,30 +1,67 @@
 <template>
   <div class="course-comments">
-    <div class="comment-list">
-      <div v-if="comments.length === 0" class="no-comments">暂无评论</div>
-      <div
-        v-else
-        v-for="comment in comments"
-        :key="comment.comment_id"
-        class="comment-item"
-      >
-        <div class="comment-header">
-          <span class="student-name"
-            >{{ comment.student_name }} : {{ comment.rating }}</span
-          >
-          <span class="comment-time">{{ formatTime(comment.created_at) }}</span>
-        </div>
-        <div class="comment-rating">
-          <a-rate :value="getRating(comment.rating)" disabled />
-        </div>
-        <div class="comment-content">{{ comment.content }}</div>
-      </div>
-    </div>
+    <!-- 筛选表单 -->
+    <a-form layout="inline" class="filter-form">
+      <a-form-item label="学生姓名">
+        <a-input
+          v-model:value="filters.student_name"
+          placeholder="请输入学生姓名"
+          allowClear
+        />
+      </a-form-item>
+      <a-form-item label="评分区间">
+        <a-space>
+          <a-input-number
+            v-model:value="filters.min_rating"
+            :min="1"
+            :max="5"
+            placeholder="最低星"
+          />
+          <span>-</span>
+          <a-input-number
+            v-model:value="filters.max_rating"
+            :min="1"
+            :max="5"
+            placeholder="最高星"
+          />
+        </a-space>
+      </a-form-item>
+      <a-form-item label="时间区间">
+        <a-range-picker
+          v-model:value="filters.time_range"
+          style="width: 260px"
+        />
+      </a-form-item>
+      <a-form-item>
+        <a-button type="primary" @click="handleFilter">筛选</a-button>
+        <a-button style="margin-left: 12px" @click="handleReset">重置</a-button>
+      </a-form-item>
+    </a-form>
+
+    <!-- 评论表格 -->
+    <a-table
+      :columns="columns"
+      :data-source="filteredComments"
+      :loading="loading"
+      row-key="comment_id"
+      :pagination="{ pageSize: 10 }"
+    >
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'rating'">
+          <a-rate :value="record.rating" disabled />
+        </template>
+        
+        <template v-else-if="column.key === 'created_at'">
+          {{ formatTime(record.created_at) }}
+        </template>
+
+      </template>
+    </a-table>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import axios from "axios";
 import dayjs from "dayjs";
 
@@ -38,19 +75,61 @@ const props = defineProps({
 const comments = ref([]);
 const loading = ref(false);
 
-const getRating = (rating) => {
-  if (rating < 20) {
-    return 1;
-  } else if (rating < 40) {
-    return 2;
-  } else if (rating < 60) {
-    return 3;
-  } else if (rating < 80) {
-    return 4;
-  } else {
-    return 5;
-  }
+// 表格列定义
+const columns = [
+  { title: "学生姓名", dataIndex: "student_name", key: "student_name" },
+  { title: "评星", dataIndex: "rating", key: "rating", width: 300 },
+  { title: "分数", dataIndex: "content", key: "content", ellipsis: true },
+  { title: "时间", dataIndex: "created_at", key: "created_at", width: 300 },
+];
+
+// 筛选条件
+const filters = ref({
+  student_name: "",
+  min_rating: undefined,
+  max_rating: undefined,
+  time_range: [],
+});
+
+// 评分转换（原始数据如有百分制转星级，可在此处理）
+const getStar = (rating) => {
+  if (rating > 5) return Math.round(rating / 20); // 兼容百分制
+  return rating;
 };
+
+// 前端筛选
+const filteredComments = computed(() => {
+  return comments.value
+    .filter((item) => {
+      // 姓名筛选
+      if (
+        filters.value.student_name &&
+        !item.student_name.includes(filters.value.student_name)
+      ) {
+        return false;
+      }
+      // 评分筛选
+      const star = getStar(item.rating);
+      if (filters.value.min_rating && star < filters.value.min_rating) {
+        return false;
+      }
+      if (filters.value.max_rating && star > filters.value.max_rating) {
+        return false;
+      }
+      // 时间筛选
+      if (filters.value.time_range && filters.value.time_range.length === 2) {
+        const t = dayjs(item.created_at);
+        if (
+          t.isBefore(filters.value.time_range[0]) ||
+          t.isAfter(filters.value.time_range[1])
+        ) {
+          return false;
+        }
+      }
+      return true;
+    })
+    .map((item) => ({ ...item, rating: getStar(item.rating) }));
+});
 
 // 获取评论列表
 const fetchComments = async () => {
@@ -72,6 +151,20 @@ const formatTime = (timestamp) => {
   return dayjs(timestamp).format("YYYY-MM-DD HH:mm");
 };
 
+const handleFilter = () => {
+  // 触发computed刷新
+  filters.value = { ...filters.value };
+};
+
+const handleReset = () => {
+  filters.value = {
+    student_name: "",
+    min_rating: undefined,
+    max_rating: undefined,
+    time_range: [],
+  };
+};
+
 // 监听课程ID变化
 watch(
   () => props.courseId,
@@ -88,49 +181,13 @@ onMounted(() => {
 <style lang="less" scoped>
 .course-comments {
   padding: 20px;
-  max-height: 500px;
-  overflow-y: auto;
+  margin: 0 auto;
 
-  .no-comments {
-    text-align: center;
-    color: #999;
-    padding: 20px;
-  }
-
-  .comment-item {
-    padding: 16px;
-    border-bottom: 1px solid #f0f0f0;
+  .filter-form {
     margin-bottom: 16px;
-
-    &:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-    }
-
-    .comment-header {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-
-      .student-name {
-        font-weight: 500;
-        color: #1890ff;
-      }
-
-      .comment-time {
-        color: #999;
-        font-size: 12px;
-      }
-    }
-
-    .comment-rating {
-      margin-bottom: 8px;
-    }
-
-    .comment-content {
-      color: #333;
-      line-height: 1.6;
-    }
+    background: #fff;
+    padding: 16px 24px;
+    border-radius: 4px;
   }
 }
 </style>

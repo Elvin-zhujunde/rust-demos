@@ -122,6 +122,12 @@ const routes = [
         name: 'AdminClassrooms',
         component: AdminClassrooms,
         meta: { requiresAuth: true, role: 'admin' },
+      },
+      {
+        path: 'grades',
+        name: 'AdminGrades',
+        component: () => import('../views/admin/Grades.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
       }
     ]
   }

@@ -3,7 +3,12 @@
     <a-card :bordered="false">
       <template #title>
         <div class="card-title">
-          <h2>选课</h2>
+          <h2>
+            选课&nbsp;&nbsp;&nbsp;&nbsp;({{
+              formatTime(setTimeForm?.start_time) || ""
+            }}
+            - {{ formatTime(setTimeForm?.end_time) || "" }})
+          </h2>
           <div class="card-title-right">
             <a-button type="primary" @click="showClassCourses">
               应用班级课表
@@ -13,35 +18,66 @@
       </template>
 
       <!-- 推荐课程部分 -->
-      <a-collapse v-model:activeKey="activeCollapseKey" class="recommendation-section">
-        <a-collapse-panel key="1" :header="'课程推荐 (' + recommendedCourses.length + ')'">
+      <a-collapse
+        v-model:activeKey="activeCollapseKey"
+        class="recommendation-section"
+      >
+        <a-collapse-panel
+          key="1"
+          :header="'课程推荐 (' + recommendedCourses.length + ')'"
+        >
           <div class="recommendation-cards">
             <a-row :gutter="[16, 16]">
-              <a-col :span="8" v-for="course in recommendedCourses" :key="course.course_id">
+              <a-col
+                :span="8"
+                v-for="course in recommendedCourses"
+                :key="course.course_id"
+              >
                 <a-card hoverable class="recommendation-card">
                   <template #title>
                     <div class="recommendation-card-title">
                       {{ course.subject_name }}
-                      <a-tag :color="course.recommendation_reason === '同班同学热选课程' ? 'red' : 'blue'">
+                      <a-tag
+                        :color="
+                          course.recommendation_reason === '同班同学热选课程'
+                            ? 'red'
+                            : 'blue'
+                        "
+                      >
                         {{ course.recommendation_reason }}
                       </a-tag>
                     </div>
                   </template>
                   <div class="recommendation-card-content">
-                    <p><strong>教师：</strong>{{ course.teacher_name }} ({{ course.teacher_title }})</p>
+                    <p>
+                      <strong>教师：</strong>{{ course.teacher_name }} ({{
+                        course.teacher_title
+                      }})
+                    </p>
                     <p><strong>时间：</strong>{{ course.course_time }}</p>
                     <p><strong>教室：</strong>{{ course.classroom_display }}</p>
                     <p><strong>学分：</strong>{{ course.credits }}</p>
-                    <p><strong>容量：</strong>{{ course.student_count }}/{{ course.max_students }}</p>
+                    <p>
+                      <strong>容量：</strong>{{ course.student_count }}/{{
+                        course.max_students
+                      }}
+                    </p>
                   </div>
                   <template #actions>
-                    <a-button 
-                      type="primary" 
-                      :disabled="course.student_count >= course.max_students"
+                    <a-button
+                      type="primary"
+                      :disabled="
+                        course.student_count >= course.max_students ||
+                        cantSelect
+                      "
                       @click="handleSelect(course)"
                       :loading="course.loading"
                     >
-                      {{ course.student_count >= course.max_students ? '已满' : '选课' }}
+                      {{
+                        course.student_count >= course.max_students
+                          ? "已满"
+                          : "选课"
+                      }}
                     </a-button>
                   </template>
                 </a-card>
@@ -97,7 +133,9 @@
           </a-form-item>
           <a-form-item>
             <a-button type="primary" @click="handleSearch">搜索</a-button>
-            <a-button style="margin-left: 8px" @click="handleReset">重置</a-button>
+            <a-button style="margin-left: 8px" @click="handleReset"
+              >重置</a-button
+            >
           </a-form-item>
         </a-form>
       </div>
@@ -126,7 +164,9 @@
                 v-if="!record.is_selected"
                 type="primary"
                 size="small"
-                :disabled="record.student_count >= record.max_students"
+                :disabled="
+                  record.student_count >= record.max_students || cantSelect
+                "
                 @click="handleSelect(record)"
               >
                 选课
@@ -175,7 +215,8 @@
       v-model:visible="showComments"
       :title="currentCourse?.subject_name + ' - 课程评论'"
       :footer="null"
-      width="600px"
+      width="100%"
+      wrap-class-name="full-modal"
     >
       <CourseComments :course-id="currentCourse?.course_id" />
     </a-modal>
@@ -183,21 +224,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { message } from "ant-design-vue";
 import axios from "axios";
 import CourseSchedule from "@/components/CourseSchedule.vue";
-import CourseComments from '@/components/Course/CourseComments.vue';
-
+import CourseComments from "@/components/Course/CourseComments.vue";
+import dayjs from "dayjs";
 const loading = ref(false);
 const courseList = ref([]);
 const classCourseVisible = ref(false);
 const scheduleRef = ref(null);
 const applying = ref(false);
 const studentId = ref(localStorage.getItem("userId"));
-const activeCollapseKey = ref(['1']); // 默认展开推荐面板
+const activeCollapseKey = ref(["1"]); // 默认展开推荐面板
 const recommendedCourses = ref([]);
 
+const cantSelect = computed(() => {
+  return (
+    Date.now() > new Date(setTimeForm.value?.end_time).getTime() ||
+    Date.now() < new Date(setTimeForm.value?.start_time).getTime()
+  );
+});
 // 表格列定义
 const columns = [
   {
@@ -246,10 +293,10 @@ const columns = [
 
 // 添加搜索表单数据
 const searchForm = ref({
-  subject_name: '',
-  teacher_name: '',
+  subject_name: "",
+  teacher_name: "",
   week_day: undefined,
-  start_section: undefined
+  start_section: undefined,
 });
 
 // 获取课程列表
@@ -260,11 +307,11 @@ const fetchCourses = async () => {
     // 构建查询参数
     const params = new URLSearchParams({
       student_id: studentId,
-      ...searchForm.value
+      ...searchForm.value,
     });
-    
+
     // 移除未定义的参数
-    Object.keys(searchForm.value).forEach(key => {
+    Object.keys(searchForm.value).forEach((key) => {
       if (!searchForm.value[key]) {
         params.delete(key);
       }
@@ -290,10 +337,10 @@ const handleSearch = () => {
 // 重置搜索条件
 const handleReset = () => {
   searchForm.value = {
-    subject_name: '',
-    teacher_name: '',
+    subject_name: "",
+    teacher_name: "",
     week_day: undefined,
-    start_section: undefined
+    start_section: undefined,
   };
   fetchCourses();
 };
@@ -313,10 +360,7 @@ const fetchRecommendedCourses = async () => {
 
 // 选课成功后的处理
 const handleSelectSuccess = async () => {
-  await Promise.all([
-    fetchCourses(),
-    fetchRecommendedCourses()
-  ]);
+  await Promise.all([fetchCourses(), fetchRecommendedCourses()]);
 };
 
 // 修改选课方法
@@ -344,7 +388,10 @@ const handleSelect = async (course) => {
 const showClassCourses = () => {
   classCourseVisible.value = true;
 };
-
+// 格式化时间
+const formatTime = (timestamp) => {
+  return dayjs(timestamp).format("YYYY-MM-DD");
+};
 // 应用班级课表
 const applyClassCourses = async () => {
   applying.value = true;
@@ -375,10 +422,14 @@ const showCourseComments = (course) => {
   currentCourse.value = course;
   showComments.value = true;
 };
-
+const setTimeForm = ref({});
 onMounted(() => {
   fetchCourses();
   fetchRecommendedCourses();
+  setTimeForm.value = JSON.parse(localStorage.getItem("setTimeForm"));
+  if (setTimeForm) {
+    console.log(setTimeForm);
+  }
 });
 </script>
 
@@ -390,7 +441,7 @@ onMounted(() => {
 
 .search-form {
   margin-bottom: 24px;
-  
+
   :deep(.ant-form-item) {
     margin-bottom: 16px;
   }
@@ -411,7 +462,7 @@ onMounted(() => {
   .recommendation-cards {
     .recommendation-card {
       height: 100%;
-      
+
       .recommendation-card-title {
         display: flex;
         justify-content: space-between;
@@ -448,5 +499,21 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+.full-modal {
+  .ant-modal {
+    max-width: 100%;
+    top: 0;
+    padding-bottom: 0;
+    margin: 0;
+  }
+  .ant-modal-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh);
+  }
+  .ant-modal-body {
+    flex: 1;
+  }
 }
 </style>

@@ -9,27 +9,24 @@
               <template #icon><MessageOutlined /></template>
               课程聊天室
             </a-button>
-            <a-button 
-              v-if="isTeacher" 
-              type="primary" 
+            <a-button
+              v-if="isTeacher"
+              type="primary"
               @click="showCreateTaskModal"
             >
               <template #icon><PlusOutlined /></template>
               发布任务
             </a-button>
-            <a-button 
-              v-if="isTeacher" 
-              type="primary" 
+            <a-button
+              v-if="isTeacher"
+              type="primary"
               danger
               @click="handleEndCourse"
             >
               <template #icon><StopOutlined /></template>
               结束课程
             </a-button>
-            <a-button 
-              type="primary" 
-              @click="showComments = true"
-            >
+            <a-button type="primary" @click="showComments = true">
               <template #icon><CommentOutlined /></template>
               查看评论
             </a-button>
@@ -201,7 +198,11 @@
           </p>
           <p v-if="currentTask.attachment_url">
             <strong>附件：</strong>
-            <a :href="getAttachmentUrl(currentTask.attachment_url)" target="_blank">下载附件</a>
+            <a
+              :href="getAttachmentUrl(currentTask.attachment_url)"
+              target="_blank"
+              >下载附件</a
+            >
           </p>
 
           <!-- 学生提交作业部分 -->
@@ -223,7 +224,9 @@
                 <p v-if="currentTask.submission.attachment_url">
                   <strong>已提交的附件：</strong>
                   <a
-                    :href="getAttachmentUrl(currentTask.submission.attachment_url)"
+                    :href="
+                      getAttachmentUrl(currentTask.submission.attachment_url)
+                    "
                     target="_blank"
                     >下载</a
                   >
@@ -332,19 +335,24 @@
     >
       <div class="chat-room">
         <div class="chat-messages" ref="messageContainer">
-          <div v-for="msg in messages" :key="msg.message_id" 
-               :class="['message', { 'my-message': isMyMessage(msg) }]">
+          <div
+            v-for="msg in messages"
+            :key="msg.message_id"
+            :class="['message', { 'my-message': isMyMessage(msg) }]"
+          >
             <div class="message-header">
               <span class="sender-name">
                 {{ msg.sender_name }}
-                <a-tag v-if="msg.sender_type === 'teacher'" color="blue">老师</a-tag>
+                <a-tag v-if="msg.sender_type === 'teacher'" color="blue"
+                  >老师</a-tag
+                >
               </span>
               <span class="message-time">{{ formatTime(msg.created_at) }}</span>
             </div>
             <div class="message-content">{{ msg.content }}</div>
           </div>
         </div>
-        
+
         <div class="chat-input">
           <a-input
             v-model:value="newMessage"
@@ -353,7 +361,9 @@
             size="large"
           >
             <template #suffix>
-              <a-button type="primary" size="large" @click="sendMessage">发送</a-button>
+              <a-button type="primary" size="large" @click="sendMessage"
+                >发送</a-button
+              >
             </template>
           </a-input>
         </div>
@@ -365,7 +375,8 @@
       v-model:visible="showComments"
       title="课程评论"
       :footer="null"
-      width="600px"
+      width="100%"
+      wrap-class-name="full-modal"
     >
       <CourseComments :course-id="courseId" />
     </a-modal>
@@ -373,14 +384,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
-import { UploadOutlined, PlusOutlined, MessageOutlined, StopOutlined, CommentOutlined } from "@ant-design/icons-vue"
-import { io } from 'socket.io-client'
-import axios from 'axios'
-import dayjs from "dayjs"
-import CourseComments from '@/components/Course/CourseComments.vue'
+import { ref, onMounted, onUnmounted, watch } from "vue";
+import { useRoute } from "vue-router";
+import { message, Modal } from "ant-design-vue";
+import {
+  UploadOutlined,
+  PlusOutlined,
+  MessageOutlined,
+  StopOutlined,
+  CommentOutlined,
+} from "@ant-design/icons-vue";
+import { io } from "socket.io-client";
+import axios from "axios";
+import dayjs from "dayjs";
+import CourseComments from "@/components/Course/CourseComments.vue";
 
 const route = useRoute();
 const courseId = route.params.id;
@@ -391,13 +408,13 @@ const taskList = ref([]);
 
 // 用户相关
 const role = ref(localStorage.getItem("role"));
-const studentId = ref('');
-const teacherId = ref('');
+const studentId = ref("");
+const teacherId = ref("");
 
 // 聊天室相关
 const showChat = ref(false);
 const messages = ref([]);
-const newMessage = ref('');
+const newMessage = ref("");
 const messageContainer = ref(null);
 const socket = ref(null);
 
@@ -716,7 +733,7 @@ const gradeSubmission = async (submission) => {
 
 // 下载提交的作业
 const downloadSubmission = (submission) => {
-  window.open(`http://localhost:8088${submission.attachment_url}`, '_blank');
+  window.open(`http://localhost:8088${submission.attachment_url}`, "_blank");
 };
 
 // 文件上传相关
@@ -787,7 +804,7 @@ const formatDate = (date) => {
 
 // 处理任务附件下载链接
 const getAttachmentUrl = (url) => {
-  if (!url) return '';
+  if (!url) return "";
   return `http://localhost:8088${url}`;
 };
 
@@ -836,7 +853,7 @@ const initUserInfo = () => {
     role: localStorage.getItem("role"),
     userId: localStorage.getItem("userId"),
     teacherId: localStorage.getItem("teacherId"),
-    teacher_id: localStorage.getItem("teacher_id")
+    teacher_id: localStorage.getItem("teacher_id"),
   });
 
   role.value = localStorage.getItem("role");
@@ -878,58 +895,59 @@ const scrollToBottom = () => {
 };
 
 const connectSocket = () => {
-  socket.value = io('http://localhost:8088', {
-    transports: ['websocket']
+  socket.value = io("http://localhost:8088", {
+    transports: ["websocket"],
   });
 
-  socket.value.on('connect', () => {
-    console.log('WebSocket连接成功');
-    socket.value.emit('joinRoom', {
+  socket.value.on("connect", () => {
+    console.log("WebSocket连接成功");
+    socket.value.emit("joinRoom", {
       courseId: courseInfo.value.course_id,
-      userId: role.value === 'student' ? studentId.value : teacherId.value,
-      userType: role.value
+      userId: role.value === "student" ? studentId.value : teacherId.value,
+      userType: role.value,
     });
   });
 
-  socket.value.on('history', (data) => {
+  socket.value.on("history", (data) => {
     messages.value = data;
     scrollToBottom();
   });
 
-  socket.value.on('message', (msg) => {
+  socket.value.on("message", (msg) => {
     messages.value.push(msg);
     scrollToBottom();
   });
 
-  socket.value.on('error', (error) => {
-    console.error('WebSocket错误:', error);
-    message.error(error.message || '发送消息失败');
+  socket.value.on("error", (error) => {
+    console.error("WebSocket错误:", error);
+    message.error(error.message || "发送消息失败");
   });
 };
 
 const sendMessage = () => {
   if (!newMessage.value.trim()) return;
-  
-  socket.value.emit('message', {
+
+  socket.value.emit("message", {
     courseId: courseInfo.value.course_id,
-    userId: role.value === 'student' ? studentId.value : teacherId.value,
+    userId: role.value === "student" ? studentId.value : teacherId.value,
     userType: role.value,
-    content: newMessage.value.trim()
+    content: newMessage.value.trim(),
   });
-  
-  newMessage.value = '';
+
+  newMessage.value = "";
 };
 
 const isMyMessage = (msg) => {
-  const currentUserId = role.value === 'student' ? studentId.value : teacherId.value;
+  const currentUserId =
+    role.value === "student" ? studentId.value : teacherId.value;
   return msg.sender_id === currentUserId && msg.sender_type === role.value;
 };
 
 const formatTime = (timestamp) => {
   const date = new Date(timestamp);
-  return date.toLocaleString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
+  return date.toLocaleString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -943,8 +961,8 @@ watch(showChat, (newVal) => {
 // 组卸载时断开连接
 onUnmounted(() => {
   if (socket.value) {
-    socket.value.emit('leaveRoom', {
-      courseId: courseInfo.value.course_id
+    socket.value.emit("leaveRoom", {
+      courseId: courseInfo.value.course_id,
     });
     socket.value.disconnect();
   }
@@ -959,22 +977,23 @@ onMounted(() => {
 // 添加结束课程的方法
 const handleEndCourse = () => {
   Modal.confirm({
-    title: '确认结束课程',
-    content: '结束课程后，学生将无法继续提交作业，且无法进行选课操作。确定要结束课程吗？',
-    okText: '确定',
-    cancelText: '取消',
+    title: "确认结束课程",
+    content:
+      "结束课程后，学生将无法继续提交作业，且无法进行选课操作。确定要结束课程吗？",
+    okText: "确定",
+    cancelText: "取消",
     onOk: async () => {
       try {
         const response = await axios.post(`/course/${courseId}/end`);
         if (response.data.success) {
-          message.success('课程已结束');
+          message.success("课程已结束");
           fetchCourseInfo(); // 刷新课程信息
         }
       } catch (error) {
-        console.error('结束课程失败:', error);
-        message.error(error.response?.data?.message || '结束课程失败');
+        console.error("结束课程失败:", error);
+        message.error(error.response?.data?.message || "结束课程失败");
       }
-    }
+    },
   });
 };
 
@@ -1140,5 +1159,20 @@ const showComments = ref(false);
   padding: 0 24px;
   font-size: 15px;
 }
+.full-modal {
+  .ant-modal {
+    max-width: 100%;
+    top: 0;
+    padding-bottom: 0;
+    margin: 0;
+  }
+  .ant-modal-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh);
+  }
+  .ant-modal-body {
+    flex: 1;
+  }
+}
 </style>
-

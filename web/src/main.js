@@ -20,4 +20,4 @@ app.mount('#app')
 
 router.isReady().then(() => {
     console.log('路由已就绪')
-}) 
+})

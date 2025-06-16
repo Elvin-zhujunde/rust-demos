@@ -13,7 +13,6 @@
         {{ day.label }}
       </div>
     </div>
-
     <div class="schedule-body">
       <!-- 上午时段 -->
       <div class="time-block morning">

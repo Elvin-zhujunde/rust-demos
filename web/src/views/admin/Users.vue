@@ -17,6 +17,83 @@
       </a-space>
     </div>
 
+    <!-- 添加筛选表单 -->
+    <a-form layout="inline" class="filter-form">
+      <a-form-item label="姓名">
+        <a-input v-model:value="filters.name" placeholder="请输入姓名" allowClear />
+      </a-form-item>
+      <a-form-item label="邮箱">
+        <a-input v-model:value="filters.email" placeholder="请输入邮箱" allowClear />
+      </a-form-item>
+      <template v-if="currentRole === 'student'">
+        <a-form-item label="学号">
+          <a-input v-model:value="filters.student_id" placeholder="请输入学号" allowClear />
+        </a-form-item>
+        <a-form-item label="院系">
+          <a-select
+            v-model:value="filters.department_id"
+            style="width: 200px"
+            placeholder="请选择院系"
+            allowClear
+          >
+            <a-select-option
+              v-for="dept in departments"
+              :key="dept.department_id"
+              :value="dept.department_id"
+            >
+              {{ dept.department_name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="专业">
+          <a-select
+            v-model:value="filters.major_id"
+            style="width: 200px"
+            placeholder="请选择专业"
+            allowClear
+          >
+            <a-select-option
+              v-for="major in majors"
+              :key="major.major_id"
+              :value="major.major_id"
+            >
+              {{ major.major_name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+      </template>
+      <template v-else>
+        <a-form-item label="工号">
+          <a-input v-model:value="filters.teacher_id" placeholder="请输入工号" allowClear />
+        </a-form-item>
+        <a-form-item label="院系">
+          <a-select
+            v-model:value="filters.department_id"
+            style="width: 200px"
+            placeholder="请选择院系"
+            allowClear
+          >
+            <a-select-option
+              v-for="dept in departments"
+              :key="dept.department_id"
+              :value="dept.department_id"
+            >
+              {{ dept.department_name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="职称">
+          <a-input v-model:value="filters.title" placeholder="请输入职称" allowClear />
+        </a-form-item>
+      </template>
+      <a-form-item>
+        <a-space>
+          <a-button type="primary" @click="handleSearch">查询</a-button>
+          <a-button @click="handleReset">重置</a-button>
+        </a-space>
+      </a-form-item>
+    </a-form>
+
     <a-table
       :columns="columns"
       :data-source="users"
@@ -322,6 +399,16 @@ const modalTitle = computed(() => {
   return `编辑${currentRole.value === "student" ? "学生" : "教师"}`;
 });
 
+const filters = ref({
+  name: '',
+  email: '',
+  student_id: '',
+  teacher_id: '',
+  department_id: '',
+  major_id: '',
+  title: ''
+})
+
 // 获取用户列表
 const fetchUsers = async () => {
   loading.value = true;
@@ -331,6 +418,7 @@ const fetchUsers = async () => {
         role: currentRole.value,
         page: pagination.value.current,
         pageSize: pagination.value.pageSize,
+        ...filters.value
       },
     });
     users.value = res.data.data.items;
@@ -384,6 +472,7 @@ const handleTableChange = (pag) => {
   pagination.value.pageSize = pag.pageSize;
   fetchUsers();
 };
+
 const showType = ref("add");
 // 显示模态框
 const showModal = (record) => {
@@ -468,6 +557,27 @@ const handleDelete = async (record) => {
   }
 };
 
+// 处理搜索
+const handleSearch = () => {
+  pagination.value.current = 1
+  fetchUsers()
+}
+
+// 处理重置
+const handleReset = () => {
+  filters.value = {
+    name: '',
+    email: '',
+    student_id: '',
+    teacher_id: '',
+    department_id: '',
+    major_id: '',
+    title: ''
+  }
+  pagination.value.current = 1
+  fetchUsers()
+}
+
 onMounted(() => {
   fetchUsers();
   fetchDepartments();
@@ -487,5 +597,12 @@ onMounted(() => {
 
 .danger {
   color: #ff4d4f;
+}
+
+.filter-form {
+  margin-bottom: 16px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 2px;
 }
 </style>

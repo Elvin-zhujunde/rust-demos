@@ -57,28 +57,92 @@ const validateUserData = (data, role) => {
 
 // 获取用户列表
 exports.getUsers = async (ctx) => {
-  const { role, page = 1, pageSize = 10 } = ctx.query
+  const { 
+    role, 
+    page = 1, 
+    pageSize = 10,
+    name,
+    email,
+    student_id,
+    teacher_id,
+    department_id,
+    major_id,
+    title
+  } = ctx.query
   const offset = (page - 1) * pageSize
 
   try {
-    let table = role === 'student' ? 'Student' : 'Teacher'
-    let idField = role === 'student' ? 'student_id' : 'teacher_id'
-    let joinFields = role === 'student' 
-      ? 'LEFT JOIN Department d ON s.department_id = d.department_id LEFT JOIN Major m ON s.major_id = m.major_id LEFT JOIN Class c ON s.class_id = c.class_id'
-      : 'LEFT JOIN Department d ON t.department_id = d.department_id'
-    let selectFields = role === 'student'
-      ? 's.*, d.department_name as department_name, m.major_name as major_name, c.class_name as class_name'
-      : 't.*, d.department_name as department_name'
-    let alias = role === 'student' ? 's' : 't'
+    // 构建基础查询
+    let whereConditions = []
+    const queryParams = []
+
+    // 根据角色选择表
+    const table = role === 'student' ? 'Student' : 'Teacher'
+    const alias = role === 'student' ? 's' : 't'
+    const idField = role === 'student' ? 'student_id' : 'teacher_id'
+
+    // 添加筛选条件
+    if (name) {
+      whereConditions.push(`${alias}.name LIKE ?`)
+      queryParams.push(`%${name}%`)
+    }
+    if (email) {
+      whereConditions.push(`${alias}.email LIKE ?`)
+      queryParams.push(`%${email}%`)
+    }
+    if (role === 'student' && student_id) {
+      whereConditions.push(`${alias}.student_id LIKE ?`)
+      queryParams.push(`%${student_id}%`)
+    }
+    if (role === 'teacher' && teacher_id) {
+      whereConditions.push(`${alias}.teacher_id LIKE ?`)
+      queryParams.push(`%${teacher_id}%`)
+    }
+    if (department_id) {
+      whereConditions.push(`${alias}.department_id = ?`)
+      queryParams.push(department_id)
+    }
+    if (role === 'student' && major_id) {
+      whereConditions.push(`${alias}.major_id = ?`)
+      queryParams.push(major_id)
+    }
+    if (role === 'teacher' && title) {
+      whereConditions.push(`${alias}.title LIKE ?`)
+      queryParams.push(`%${title}%`)
+    }
+
+    // 构建 WHERE 子句
+    const whereClause = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')}` 
+      : ''
+
+    // 构建 JOIN 子句
+    const joinClause = role === 'student'
+      ? `LEFT JOIN Department d ON ${alias}.department_id = d.department_id 
+         LEFT JOIN Major m ON ${alias}.major_id = m.major_id 
+         LEFT JOIN Class c ON ${alias}.class_id = c.class_id`
+      : `LEFT JOIN Department d ON ${alias}.department_id = d.department_id`
+
+    // 构建 SELECT 子句
+    const selectClause = role === 'student'
+      ? `${alias}.*, d.department_name, m.major_name, c.class_name`
+      : `${alias}.*, d.department_name`
 
     // 获取总数
-    const [countResult] = await pool.query(`SELECT COUNT(*) as total FROM ${table}`)
+    const [countResult] = await pool.query(
+      `SELECT COUNT(*) as total FROM ${table} ${alias} ${whereClause}`,
+      queryParams
+    )
     const total = countResult[0].total
 
     // 获取分页数据
     const [rows] = await pool.query(
-      `SELECT ${selectFields} FROM ${table} ${alias} ${joinFields} LIMIT ? OFFSET ?`,
-      [parseInt(pageSize), offset]
+      `SELECT ${selectClause} 
+       FROM ${table} ${alias} 
+       ${joinClause} 
+       ${whereClause} 
+       LIMIT ? OFFSET ?`,
+      [...queryParams, parseInt(pageSize), offset]
     )
 
     ctx.body = {

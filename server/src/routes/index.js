@@ -173,6 +173,9 @@ router.post('/classrooms', classroomController.createClassroom)
 router.put('/classrooms/:classroom_id', classroomController.updateClassroom)
 router.delete('/classrooms/:classroom_id', classroomController.deleteClassroom)
 
+// 成绩管理路由
+router.get('/grades/admin', gradeController.getGradesAdmin)
+
 // 测试静态文件访问
 router.get('/test-static', async (ctx) => {
   const fs = require('fs');
