@@ -1,0 +1,53 @@
+[package]
+name = "my_project"
+version = "0.1.0"
+edition = "2024"
+
+# 主入口
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+# 教程文件入口
+[[bin]]
+name = "01_variables_and_types"
+path = "src/01_variables_and_types.rs"
+
+[[bin]]
+name = "02_functions"
+path = "src/02_functions.rs"
+
+[[bin]]
+name = "03_control_flow"
+path = "src/03_control_flow.rs"
+
+[[bin]]
+name = "04_ownership"
+path = "src/04_ownership.rs"
+
+[[bin]]
+name = "05_structs"
+path = "src/05_structs.rs"
+
+[[bin]]
+name = "06_enums_and_pattern_matching"
+path = "src/06_enums_and_pattern_matching.rs"
+
+[[bin]]
+name = "07_collections"
+path = "src/07_collections.rs"
+
+[[bin]]
+name = "08_packages_and_modules"
+path = "src/08_packages_and_modules.rs"
+
+[[bin]]
+name = "09_error_handling"
+path = "src/09_error_handling.rs"
+
+[[bin]]
+name = "10_generics_traits_lifetimes"
+path = "src/10_generics_traits_lifetimes.rs"
+
+[dependencies]
+ferris-says = "0.3.1"

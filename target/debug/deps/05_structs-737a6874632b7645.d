@@ -1,0 +1,5 @@
+/Users/a1/Desktop/rust/my_project/target/debug/deps/05_structs-737a6874632b7645.d: src/05_structs.rs
+
+/Users/a1/Desktop/rust/my_project/target/debug/deps/lib05_structs-737a6874632b7645.rmeta: src/05_structs.rs
+
+src/05_structs.rs:
