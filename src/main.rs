@@ -1,95 +1,128 @@
-// 01_variables_and_types.rs - Rust变量和数据类型详解
+// 02_functions.rs - Rust函数详解
 
+// 主函数
 fn main() {
-    // 基础变量声明和不可变性
-    let x = 5; // 默认是不可变的
+    println!("Hello, world!");
+    
+    // 调用函数
+    another_function();
+    
+    // 调用带参数的函数
+    print_labeled_measurement(5, 'h');
+    
+    // 调用带返回值的函数
+    let x = five();
     println!("The value of x is: {}", x);
     
-    // 可变变量声明
-    let mut y = 5; // 使用mut关键字使其可变
-    println!("The value of y is: {}", y);
-    y = 6; // 可以修改值
+    // 调用带表达式返回值的函数
+    let y = plus_one(5);
     println!("The value of y is: {}", y);
     
-    // 显式类型注解
-    let z: i32 = 5; // 明确指定变量类型
-    let pi: f64 = 3.14159;
-    let is_rust_fun: bool = true;
-    let c: char = 'R';
+    // 调用多个参数和返回值的函数
+    let (result1, result2) = multiple_returns(10, 20);
+    println!("Multiple returns: {}, {}", result1, result2);
     
-    // 整数类型
-    let a: i8 = 127; // 有符号8位整数
-    let b: u8 = 255; // 无符号8位整数
-    let c: i16 = 32767;
-    let d: u16 = 65535;
-    let e: i32 = 2147483647; // 最常用的整数类型
-    let f: u32 = 4294967295;
-    let g: i64 = 9223372036854775807;
-    let h: u64 = 18446744073709551615;
-    let i: isize = 123; // 指针大小的有符号整数
-    let j: usize = 456; // 指针大小的无符号整数，用于索引
+    // 调用带默认参数行为的函数（通过函数重载模拟）
+    say_hello();
+    say_hello_to("Rustacean");
     
-    // 浮点数类型
-    let k: f32 = 3.14; // 单精度浮点数
-    let l: f64 = 3.1415926535; // 双精度浮点数，是Rust的默认浮点类型
+    // 调用带有多个参数类型的函数
+    mixed_types(10, 3.14, "Rust");
     
-    // 布尔类型
-    let m: bool = true;
-    let n: bool = false;
+    // 调用递归函数
+    let factorial_result = factorial(5);
+    println!("Factorial of 5 is: {}", factorial_result);
     
-    // 字符类型 (Unicode标量值)
-    let o: char = 'a';
-    let p: char = '中';
-    let q: char = '🦀'; // emoji字符
+    // 函数作为参数
+    let a = 10;
+    let b = 20;
+    println!("Applying operation to {} and {}: {}", 
+             a, b, apply_operation(a, b, add));
+    println!("Applying operation to {} and {}: {}", 
+             a, b, apply_operation(a, b, subtract));
     
-    // 元组类型
-    let tuple: (i32, f64, bool, char) = (500, 6.4, true, 'z');
-    
-    // 从元组中解构值
-    let (x1, y1, z1, a1) = tuple;
-    println!("The value of y1 is: {}", y1);
-    
-    // 也可以通过索引访问元组元素
-    println!("The first element of the tuple is: {}", tuple.0);
-    println!("The second element of the tuple is: {}", tuple.1);
-    
-    // 数组类型 (固定长度)
-    let array1: [i32; 5] = [1, 2, 3, 4, 5]; // 显式类型和长度
-    let array2 = [3; 5]; // 初始化为5个值为3的元素
-    
-    // 访问数组元素
-    println!("The first element of array1 is: {}", array1[0]);
-    println!("The third element of array2 is: {}", array2[2]);
-    
-    // 数组长度
-    let array_length = array1.len();
-    println!("The length of array1 is: {}", array_length);
-    
-    // 常量 (编译时已知的值)
-    const MAX_POINTS: u32 = 100_000;
-    println!("The maximum points are: {}", MAX_POINTS);
-    
-    // 隐藏 (Shadowing) - 允许使用相同名称重新声明变量
-    let shadowed = 5;
-    println!("The value of shadowed is: {}", shadowed);
-    
-    let shadowed = shadowed + 1; // 重新声明并使用之前的值
-    println!("Now the value of shadowed is: {}", shadowed);
-    
-    let shadowed = "Now I'm a string!";
-    println!("Now the value of shadowed is: {}", shadowed);
-    
-    // 变量作用域
-    {
-        let scope_var = "I'm inside a scope";
-        println!("Inside scope: {}", scope_var);
+    // 内联函数（通过闭包模拟）
+    let square = |x| x * x;
+    println!("Square of 5 is: {}", square(5));
+}
+
+// 基础函数定义
+fn another_function() {
+    println!("Another function.");
+}
+
+// 带参数的函数
+// 参数必须指定类型
+fn print_labeled_measurement(value: i32, unit_label: char) {
+    println!("The measurement is: {}{}", value, unit_label);
+}
+
+// 带返回值的函数
+// -> 符号后跟返回类型
+fn five() -> i32 {
+    5 // 注意没有分号，这是一个表达式，会返回值
+}
+
+// 带参数和返回值的函数
+fn plus_one(x: i32) -> i32 {
+    x + 1 // 表达式返回
+}
+
+// 返回多个值（使用元组）
+fn multiple_returns(a: i32, b: i32) -> (i32, i32) {
+    (a + b, a * b) // 返回一个元组
+}
+
+// 没有参数的函数
+fn say_hello() {
+    println!("Hello!");
+}
+
+// 带一个参数的函数（模拟默认参数）
+fn say_hello_to(name: &str) {
+    println!("Hello, {}!", name);
+}
+
+// 不同类型的参数
+fn mixed_types(x: i32, y: f64, z: &str) {
+    println!("Integer: {}, Float: {}, String: {}", x, y, z);
+}
+
+// 递归函数
+fn factorial(n: u64) -> u64 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
     }
-    // 无法在这个作用域访问scope_var
-    
-    // 打印所有演示数据
-    println!("\n所有演示数据的汇总:");
-    println!("整数类型: {}, {}, {}, {}", a, e, i, j);
-    println!("浮点类型: {}, {}", k, l);
-    println!("布尔类型: {}, {}", m, n);
-    println!("字符类型: {}, {}, {}", o, p, q);
+}
+
+// 函数作为参数的示例
+// 先定义两个操作函数
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn subtract(a: i32, b: i32) -> i32 {
+    a - b
+}
+
+// 然后定义一个接受函数作为参数的函数
+// F 是一个泛型参数，约束为Fn(i32, i32) -> i32
+fn apply_operation<F>(a: i32, b: i32, operation: F) -> i32 
+where F: Fn(i32, i32) -> i32 {
+    operation(a, b)
+}
+
+// 文档注释示例
+/// 计算两个数的和
+/// 
+/// # Examples
+/// 
+/// ```
+/// let sum = calculate_sum(5, 10);
+/// assert_eq!(sum, 15);
+/// ```
+fn calculate_sum(x: i32, y: i32) -> i32 {
+    x + y
 }

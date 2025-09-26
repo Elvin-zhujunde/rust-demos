@@ -115,7 +115,7 @@ fn main() {
     let subject = AlwaysEqual;
     
     // 使用带有方法的结构体
-    let rect1 = Rectangle {
+    let rect1: Rectangle = Rectangle {
         width: 30,
         height: 50,
     };
