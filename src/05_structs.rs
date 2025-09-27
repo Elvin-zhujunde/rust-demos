@@ -202,3 +202,8 @@ impl Calculator {
         self.current
     }
 }
+fn main1() {
+    let mut calculator = Calculator::new();
+    let result = calculator.add(5).multiply(2).subtract(3).value();
+    println!("Calculator result: {}", result);
+}
